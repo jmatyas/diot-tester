@@ -19,7 +19,6 @@ class PCA9544A_Channel:
 
     def _channel_op(func):
         def wrapper(self, *args, **kwargs):
-            print(self.channel_code)
             self.pca.i2c.writeto(self.pca.address, self.channel_code)
             ret = func(self, *args, **kwargs)
             self.pca.i2c.writeto(self.pca.address, b"\x00")
@@ -60,9 +59,6 @@ class PCA9544A_Channel:
         **kwargs
     ):
         """Pass through for writeto_then_readfrom."""
-        print("Writeto_then_readfrom")
-        print("Address: ", f"0x{address:02X}", buffer_in, buffer_out)
-
         # In linux, at least, this is a special kernel function call
         if address == self.pca.address:
             raise ValueError("Device address must be different than PCA9544A address.")

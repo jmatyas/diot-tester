@@ -20,7 +20,7 @@ class EE24AA02XEXX:
         address: int,
         page_size: int = DEFAULT_PAGESIZE,
     ) -> None:
-        self._device = i2c_device.I2CDevice(bus_device, address)
+        self._device = i2c_device.I2CDevice(bus_device, address, probe=False)
         self.page_size = page_size
 
     @property

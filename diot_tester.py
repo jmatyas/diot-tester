@@ -84,7 +84,6 @@ class Channel:
         if power > self.max_power:
             raise ValueError("Power exceeds maximum power of the channel")
         
-        print("duty cycle:", int(power / self.max_power * 0xFFFF))
         self.pwm_channel.duty_cycle = int(power / self.max_power * 0xFFFF)
 
     def set_configuration(self, hysteresis: float = None, ot_shutdown: float = None, power: float = None):
@@ -106,17 +105,23 @@ class Channel:
 class DIOTTester(I2C):
     scan_blacklist = [0x70]
 
-    def __init__(self, url="ftdi://ftdi:232h:/1", frequency=100000):
+    def __init__(self, url="ftdi://ftdi:232h:/1", frequency=100000, ot_shutdown=80, hysteresis=75):
         os.environ["BLINKA_FT232H"] = url
+
+        # this is workaround; it seems that without setting the frequency explicitly
+        # the FTDI device is unable to communicate with devices on I2C bus every
+        # second time the program is run (it's rather not a problem with the device,
+        # but with the library or configuration). From the scope it seems that
+        # FTDI produces START condition, but no data is sent afterwards (it doesn't
+        # produce clock..., however, STOP condition is sent).
         self._i2c = _I2C(frequency=frequency)
+        ftdi = self._i2c._i2c.ftdi
+        ftdi.set_frequency(frequency)
 
         # 2 EEPROM to EEM0
-        self.eeproms = [
-            EEPROM24AA02E48(self, address=0x50),
-            # EEPROM24AA025E48(self._i2c, address=0x50),  # FIXME: collision
-        ]
+        self.eeprom = EEPROM24AA02E48(self, address=0x50)
 
-        self.i2c_mux = PCA9544A(self, address=0x70) # FIXME
+        self.i2c_mux = PCA9544A(self, address=0x70)
         self.i2c_buses = [
             self.i2c_mux[0],
             self.i2c_mux[1],
@@ -124,7 +129,7 @@ class DIOTTester(I2C):
             self.i2c_mux[3],
         ]
 
-        # # Mux channels 0 and 1 swapped
+        # Mux channels 0 and 1 swapped
         self.lm75s = [
             LM75(self.i2c_buses[1], device_address=0x48 + addr) for addr in range(8)
         ] + [
@@ -139,18 +144,30 @@ class DIOTTester(I2C):
             PCA9685(self.i2c_buses[2], address=0x41),
         ]
 
-        self.power_channels = [
-            Channel(self.pwm_chips[0].channels[i], self.lm75s[i]) for i in range(16)
-        ]
+        self.aux_lm75 = LM75(self.i2c_buses[3], device_address=0x48)  # LM75 without load?
+        self.aux_load = self.pwm_chips[1].channels[0]
 
+        self.load_channels = [
+            Channel(self.pwm_chips[0].channels[i], self.lm75s[i]) for i in range(16)
+        ] + [
+            Channel(self.aux_load, self.aux_lm75)
+        ]
 
         self.diot_conn_lm75s = [
             LM75(self.i2c_buses[3], device_address=0x49),  # P6 connector
             LM75(self.i2c_buses[3], device_address=0x4A),  # P1 connector
         ]
-        self.middle_lm75 = LM75(self.i2c_buses[3], device_address=0x48)  # LM75 without load?
-        self.pwm_chips[1].frequency = 1000
-        self.middle_power = self.pwm_chips[1].channels[0]
+
+        self.init(ot_shutdown, hysteresis)
+
+    def init(self, ot_shutdown=80, hysteresis=75):
+        # enable auto-increment so we can write/read registers using CP structures
+        for pwm in self.pwm_chips:
+            read_mode1 = pwm.mode1_reg
+            pwm.mode1_reg = read_mode1 | 0x20   
+        
+        for channel in self.load_channels:
+            channel.set_configuration(ot_shutdown=ot_shutdown, hysteresis=hysteresis)
 
     @property
     def current(self):
@@ -199,39 +216,36 @@ class DIOTTester(I2C):
             print(f"{bus_name}:")
             print(make_i2c_graph(detected))
 
+    def set_pwm_frequency(self, chip_no, frequency):
+        if frequency < 24 or frequency > 1526:
+            raise ValueError("Frequency must be between 24 and 1526 Hz")
+        self.pwm_chips[chip_no].frequency = frequency
 
 if __name__ == "__main__":
-    diot_tester = DIOTTester()
-    eui48 = diot_tester.eeproms[0].eui64
+    diot_tester = DIOTTester(ot_shutdown=45, hysteresis=40)
+    eui48 = diot_tester.eeprom.eui64
     print("DIOT Tester EUI-48: 0x", "-".join([f"{x:02x}" for x in eui48]))
-
-    # diot_tester.print_i2c_tree()
-
-    # print("=== MISC LM75s")
-    # for lm in [*diot_tester.diot_conn_lm75s, diot_tester.middle_lm75]:
-    #     print(lm.temperature)
-    #     print(lm.temperature_hysteresis)
-    #     print()
-
 
     print("=== Measurements with no load:")
     print("\tcurrent:", diot_tester.current)
     print("\tvoltage:", diot_tester.voltage)
-    print()
 
-    pwr = diot_tester.middle_power
-    print(pwr.duty_cycle)
+    for ix, channel in enumerate(diot_tester.load_channels):
+        channel.load_power = 5
 
-    # # power_channels = diot_tester.power_channels
-    # pwr_ch = diot_tester.power_channels[0]
-    # print("=== Channel 0:")
-    # # for i in range(5):
-    # pwr_ch.load_power = 1
-    # #     time.sleep(1)
-        
-    # print(pwr_ch.report())
+    print("=== Measurements with load:")
+    print("\tcurrent:", diot_tester.current)
+    print("\tvoltage:", diot_tester.voltage)
 
-    # # for ix, ch in enumerate(power_channels):
-    # #     ch.load_power=2 # setting power results in 5.019607843137255; seems independent of the value set
-    # #     print(f"Channel {ix}:")
-    # #     print(ch.report())
+    for i in range(10):
+        for ix, channel in enumerate(diot_tester.load_channels):
+            r = channel.report()
+            if r["temperature"] > 55:
+                print(f"OT: ch{ix}: {r['temperature']}°C... shutting down")
+                channel.load_power = 0
+            elif r["temperature"] > 35:
+                print(f"Channel{ix}: {r['temperature']}°C")
+            # channel.load_power = 5
+        print()
+        time.sleep(2.5)
+
