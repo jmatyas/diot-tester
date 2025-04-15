@@ -6,11 +6,16 @@ from typing import Dict, List, Optional, Union
 from adafruit_blinka.microcontroller.ftdi_mpsse.mpsse.i2c import I2C as _I2C
 from adafruit_pca9685 import PCA9685
 from busio import I2C
+from pyftdi.eeprom import FtdiEeprom
 
 from chips.eeprom_24aa025e48 import EEPROM24AA02E48
 from chips.lm75 import LM75
 from chips.mcp3221 import MCP3221
 from chips.pca9544 import PCA9544A
+
+# it corresponds to "93C46" chip; possible values are "93C56" and "93C66"
+# but on DIOT cards we use "93C46" (0x46)
+FTDI_EEPROM_CHIP_TYPE = 0x46
 
 
 # patching ftdi_mpsse.mpsse.i2c.I2C.scan method so it accepts one argument
@@ -147,8 +152,16 @@ class DIOTCard(I2C):
         """
         if serial is not None:
             url = f"ftdi://::{serial}/1"
+        # needed for '_I2C' from pyFTDI to work if there are more than one FTDI
+        # devices connected to the system
         os.environ["BLINKA_FT232H"] = url
 
+        self.init_i2c(frequency=frequency)
+        self.init_devices()
+        self.init_config(ot_shutdown, hysteresis)
+
+    def init_i2c(self, frequency: int = 100000) -> None:
+        self.deinit()
         # this is workaround; it seems that without setting the frequency explicitly
         # the FTDI device is unable to communicate with devices on I2C bus every
         # second time the program is run (it's rather not a problem with the device,
@@ -158,7 +171,19 @@ class DIOTCard(I2C):
         self._i2c = _I2C(frequency=frequency)
         ftdi = self._i2c._i2c.ftdi
         ftdi.set_frequency(frequency)
+        self.ftdi_ee = FtdiEeprom()
 
+        # without below, pyFTDI's FtdiEeprom gets EEPROM size that by default is
+        # set in code to 256 bytes, wheras the EEPROM on DIOT card is 128 bytes.
+        # Size of 256 bytes results in erroneous reading of the EEPROM contents,
+        # specifically the user area, which is used to store the serial number
+        # and product and manufacturer names...
+        self.ftdi_ee._chip = FTDI_EEPROM_CHIP_TYPE
+        self.ftdi_ee.connect(ftdi)
+
+        self.serial_id = self.ftdi_ee.serial
+
+    def init_devices(self) -> None:
         # 2 EEPROM to EEM0
         self.eeprom = EEPROM24AA02E48(self, address=0x50)
 
@@ -199,10 +224,7 @@ class DIOTCard(I2C):
             LM75(self.i2c_buses[3], device_address=0x4A),  # P1 connector
         ]
 
-        self.serial = serial
-        self.init(ot_shutdown, hysteresis)
-
-    def init(self, ot_shutdown=80, hysteresis=75) -> None:
+    def init_config(self, ot_shutdown=80, hysteresis=75) -> None:
         """Initialize card with default settings"""
         # enable auto-increment so we can write/read registers using CP structures
         for pwm in self.pwm_chips:
@@ -215,7 +237,7 @@ class DIOTCard(I2C):
     @property
     def card_id(self) -> Optional[str]:
         """Get the card identifier from serial number"""
-        return self.serial
+        return self.serial_id
 
     @property
     def eui48(self) -> List[int]:
