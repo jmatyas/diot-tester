@@ -392,6 +392,9 @@ def main():
     """Simple command-line interface for DIOT crate testing.
     Designed to be easy to use for physicists with minimal programming knowledge.
     """
+
+    from utils import find_serial_numbers
+
     # Create argument parser for command line interface
     parser = argparse.ArgumentParser(description="DIOT Crate Testing Tool")
 
@@ -445,19 +448,7 @@ def main():
         print("\nFor more detailed information, run: python diot_tester.py --help")
         return
 
-    # Find all connected cards (DTxx serial numbers)
-    import pyftdi.ftdi
-
-    available_cards = []
-    try:
-        for dev in pyftdi.ftdi.Ftdi.list_devices():
-            url, desc, serial = dev
-            if serial and serial.startswith("DT"):
-                available_cards.append(serial)
-    except:
-        print("No FTDI devices found. Make sure FTDI drivers are installed.")
-        return
-
+    available_cards = find_serial_numbers()
     if not available_cards:
         print("No DIOT cards (with DTxx serial numbers) found.")
         return
