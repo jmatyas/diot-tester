@@ -190,7 +190,6 @@ def configure_all_ftdis(force=True, dry_run=True, dump=False):
             dump_ee_contents(url=url)
 
 
-
 if __name__ == "__main__":
     # configure_all_ftdis(force=True, dry_run=True, dump=False)
     serials = find_serial_numbers()

@@ -38,6 +38,7 @@ import time
 from typing import Dict, List
 
 from diot_tester import CrateController
+from utils import find_serial_numbers
 
 
 class DIOTLab:
@@ -52,20 +53,10 @@ class DIOTLab:
 
         """
         if card_serials is None:
-            try:
-                import pyftdi.ftdi
-
-                card_serials = []
-                for dev in pyftdi.ftdi.Ftdi.list_devices():
-                    url, desc, serial = dev
-                    if serial and serial.startswith("DT"):
-                        card_serials.append(serial)
-                if not card_serials:
-                    print("No DIOT cards found.")
-            except Exception as e:
-                print(f"Error detecting DIOT cards: {e}")
-                card_serials = []
-
+            card_serials = find_serial_numbers()
+        if not card_serials:
+            print("No DIOT cards detected. Please check connections.")
+            return
         self.crate = CrateController(card_serials) if card_serials else None
         self.test_name = None
         self.test_description = None
@@ -519,20 +510,20 @@ def run_example_test():
     print(f"Using card {card_serial} for demonstration")
 
     # Set up a gradient of power across channels
-    lab.set_gradient_power(card_serial, 0.5, 2.5)
-    print("Power gradient set up. Starting monitoring...")
+    for ch in range(3):
+        lab.set_channel_power(card_serial, ch, 3.0)
 
-    # Monitor for 1 minute
-    lab.monitor(duration_minutes=1, interval_seconds=5)
+        # Monitor for 1 minute
+        lab.monitor(duration_minutes=0.25, interval_seconds=5)
 
-    # Plot the results
-    try:
-        lab.show_temperature_plot()
-    except Exception as e:
-        print(f"Could not generate plot: {e}")
+        # Plot the results
+        try:
+            lab.show_temperature_plot()
+        except Exception as e:
+            print(f"Could not generate plot: {e}")
 
-    # Shutdown all loads when done
-    lab.shutdown_all()
+        # Shutdown all loads when done
+        lab.shutdown_all()
     print("Example test complete!")
 
 
