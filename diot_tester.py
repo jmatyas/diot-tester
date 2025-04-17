@@ -318,8 +318,8 @@ class DIOTCard(I2C):
         self.set_all_load_power(0)
 
 
-class CrateController:
-    """Controller for managing multiple DIOT cards in a crate."""
+class DIOTCrateManager:
+    """Manager for multiple DIOT cards in a crate."""
 
     def __init__(
         self,
@@ -328,7 +328,7 @@ class CrateController:
         ot_shutdown: float = 80,
         hysteresis: float = 75,
     ) -> None:
-        """Initialize the CrateController with a list of DIOT card serial numbers.
+        """Initialize the DIOTCrateManager with a list of DIOT card serial numbers.
 
         Args:
             serial_numbers: List of FTDI serial numbers in format "DTxx" where xx is 0-8
@@ -349,7 +349,7 @@ class CrateController:
         ot_shutdown: float = 80,
         hysteresis: float = 75,
     ) -> None:
-        """Add a card to the controller by serial number"""
+        """Add a card to the mangager by serial number"""
         if not serial.startswith("DT"):
             raise ValueError("Serial number must start with 'DT'")
 
@@ -362,7 +362,7 @@ class CrateController:
             )
             self.cards[serial] = card
             print(f"Card {serial} connected successfully")
-        except Exception as e:
+        except Exception as e:  # TODO: specify only one exception type - probably I2CNACK
             print(f"Failed to connect to card {serial}: {str(e)}")
 
     def get_card(self, serial: str) -> DIOTCard:
@@ -460,8 +460,8 @@ def main():
             print(f"  - Card: {serial}")
         return
 
-    # Create the crate controller with all available cards
-    crate = CrateController(available_cards)
+    # Create the crate manager with all available cards
+    crate = DIOTCrateManager(available_cards)
 
     # Set load power for a specific channel
     if args.set_load:
