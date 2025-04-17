@@ -1,0 +1,7 @@
+line-length = 88
+indent-width = 4
+target-version = "py311"
+
+[lint]
+extend-select = ["B", "A", "SIM", "TID", "PTH", "UP", "RUF"]
+ignore = ["UP012", "RUF012", "RUF010"]

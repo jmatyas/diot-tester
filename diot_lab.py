@@ -35,16 +35,15 @@ import datetime
 import json
 import os
 import time
-from typing import Dict, List
 
-from diot_tester import CrateController
-from utils import find_serial_numbers
+from diot import DIOTCrateManager
+from diot.utils.ftdi_utils import find_serial_numbers
 
 
 class DIOTLab:
     """User-friendly interface for DIOT crate testing designed for physicists."""
 
-    def __init__(self, card_serials: List[str] = None):
+    def __init__(self, card_serials: list[str] | None = None):
         """Initialize the DIOT Lab interface.
 
         Args:
@@ -57,7 +56,7 @@ class DIOTLab:
         if not card_serials:
             print("No DIOT cards detected. Please check connections.")
             return
-        self.crate = CrateController(card_serials) if card_serials else None
+        self.crate = DIOTCrateManager(card_serials) if card_serials else None
         self.test_name = None
         self.test_description = None
         self.test_start_time = None
@@ -217,7 +216,7 @@ class DIOTLab:
             self.crate.shutdown_all_loads()
             print("All loads shut down.")
 
-    def get_temperatures(self, card_serial: str = None) -> Dict[str, List[float]]:
+    def get_temperatures(self, card_serial: str = None) -> dict[str, list[float]]:
         """Get current temperature readings for all channels on specified card(s).
 
         Args:
@@ -289,7 +288,7 @@ class DIOTLab:
 
     def monitor(
         self,
-        duration_minutes: float = None,
+        duration_minutes: float | None = None,
         interval_seconds: float = 5.0,
         max_temp: float = 75.0,
         display_output: bool = True,
@@ -367,7 +366,7 @@ class DIOTLab:
             print("\nMonitoring stopped by user.")
 
     def show_temperature_plot(
-        self, card_serial: str = None, channels: List[int] = None
+        self, card_serial: str = None, channels: list[int] | None = None
     ) -> None:
         """Display a plot of temperature over time from the logged data.
 
@@ -462,7 +461,7 @@ class DIOTLab:
                 "Matplotlib is required for plotting. Install with: pip install matplotlib"
             )
 
-    def export_data(self, format="csv") -> str:
+    def export_data(self, format: str = "csv") -> str:
         """Export the current test data to a file.
 
         Args:

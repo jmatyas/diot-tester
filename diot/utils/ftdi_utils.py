@@ -79,7 +79,7 @@ def configure_ftdi(
     ft_ee._chip = CHIP_TYPE
     try:
         if ft_ee.has_serial:
-            print(f"FTDI has SN already assigned: ", ft_ee.serial)
+            print("FTDI has SN already assigned: ", ft_ee.serial)
             if force:
                 print("Force writing new configuration...")
             else:
@@ -104,7 +104,7 @@ def configure_ftdi(
             "Manufacturer + Product + Serial number length exceeds 28 characters"
         )
 
-    chipoff = ft_ee._PROPERTIES[ft_ee.device_version].chipoff
+    _chipoff = ft_ee._PROPERTIES[ft_ee.device_version].chipoff
     useroff = ft_ee._PROPERTIES[ft_ee.device_version].user
 
     # According to FTDI user guide, the serial number should not start with digit
