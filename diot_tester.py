@@ -90,7 +90,7 @@ def main():
             print(
                 f"Set load power for card {card_serial}, channel {channel} to {power} W"
             )
-        except Exception as e:
+        except Exception as e: # FIXME
             print(f"Error setting load power: {str(e)}")
 
     # Set load power for all channels on a card
@@ -101,7 +101,7 @@ def main():
             card = crate.get_card(card_serial)
             card.set_all_load_power(power)
             print(f"Set all channels on card {card_serial} to {power} W")
-        except Exception as e:
+        except Exception as e: # FIXME
             print(f"Error setting load power: {str(e)}")
 
     # Shutdown all loads
@@ -121,7 +121,7 @@ def main():
             print(
                 f"Set OT threshold for card {card_serial}, channel {channel} to {temp}°C"
             )
-        except Exception as e:
+        except Exception as e: # FIXME
             print(f"Error setting OT threshold: {str(e)}")
 
     # Set temperature hysteresis
@@ -136,7 +136,7 @@ def main():
             print(
                 f"Set hysteresis for card {card_serial}, channel {channel} to {temp}°C"
             )
-        except Exception as e:
+        except Exception as e: # FIXME
             print(f"Error setting hysteresis: {str(e)}")
 
     # Monitor temperatures and voltages

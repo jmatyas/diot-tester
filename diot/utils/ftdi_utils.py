@@ -160,9 +160,9 @@ def find_serial_numbers(url="ftdi://ftdi:232h:/1"):
     devices = Ftdi.list_devices(url)
     for dev in devices:
         vid, pid, bus, address, sn, _, desc = dev[0]
-        print(
-            f"VID:PID: {vid:04X}:{pid:04X}, Bus: {bus}, Address: {address}, Serial: {sn}, Desc: {desc}"
-        )
+        # print(
+        #     f"VID:PID: {vid:04X}:{pid:04X}, Bus: {bus}, Address: {address}, Serial: {sn}, Desc: {desc}"
+        # )
         if sn:
             serials.append(sn)
     return serials
