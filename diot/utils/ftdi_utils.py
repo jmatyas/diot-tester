@@ -3,6 +3,7 @@ import sys
 from pyftdi.eeprom import FtdiEeprom
 from pyftdi.ftdi import Ftdi
 from pyftdi.misc import hexdump
+import time
 
 MODEL = "93C46"
 CHIP_TYPE = 0x46
@@ -191,7 +192,34 @@ def configure_all_ftdis(force=True, dry_run=True, dump=False):
 
 
 if __name__ == "__main__":
-    # configure_all_ftdis(force=True, dry_run=True, dump=False)
+    import argparse
+
+    parser = argparse.ArgumentParser(description="FTDI EEPROM configuration utility")
+    parser.add_argument("--slot", type=int, default=0, help="Slot number (0-9)")
+    args = parser.parse_args()
+
+    serial = f"DT{args.slot:02d}"
+
+    devs = find_devices()
+    if len(devs) > 1:
+        print("More than one FTDI device found. Please specify the device.")
+        print("Devices found:")
+        for dev in devs:
+            print(dev)
+        sys.exit(1)
+    vid, pid, bus, address = devs[0]
+    url = f"ftdi://:232h:{bus:x}:{address:x}/1"
+    print(f"Configuring FTDI device with URL: {url} using serial: {serial}")
+    configure_ftdi(
+        url=url,
+        manufacturer=MANUFACTURER,
+        product=PRODUCT,
+        serial=serial,
+        force=True,
+        dry_run=False,
+    )
+
+    time.sleep(1)
     serials = find_serial_numbers()
 
     print(f"Found serials: {serials}")

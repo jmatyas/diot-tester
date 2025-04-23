@@ -2,15 +2,13 @@ import argparse
 import os
 import time
 from diot import DIOTCrateManager
+from diot.utils.ftdi_utils import find_serial_numbers
 
 
 def main():
     """Simple command-line interface for DIOT crate testing.
     Designed to be easy to use for physicists with minimal programming knowledge.
     """
-
-    from diot.utils.ftdi_utils import find_serial_numbers
-
     # Create argument parser for command line interface
     parser = argparse.ArgumentParser(description="DIOT Crate Testing Tool")
 
@@ -68,6 +66,7 @@ def main():
     if not available_cards:
         print("No DIOT cards (with DTxx serial numbers) found.")
         return
+    available_cards = sorted(available_cards, key=lambda x: int(x[2:]))
 
     # List cards if requested
     if args.list_cards:
