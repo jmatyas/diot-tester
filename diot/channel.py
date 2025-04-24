@@ -2,20 +2,11 @@ from chips.lm75 import LM75
 from adafruit_pca9685 import PWMChannel
 
 
-class Channel:
-    """Represents a single load channel with temperature monitoring and power control."""
+class SensorChannel:
+    """Represents a single temperature sensor channel."""
 
-    def __init__(
-        self,
-        pwm_channel: PWMChannel,
-        temperature_sensor: LM75,
-        max_power: float | None = None,
-    ):
-        if max_power is None:
-            max_power = 5  # 5 Watts
-        self.pwm_channel = pwm_channel
+    def __init__(self, temperature_sensor: LM75):
         self.temperature_sensor = temperature_sensor
-        self.max_power = max_power
 
     # === LM75 properties ===
     @property
@@ -42,6 +33,31 @@ class Channel:
     def ot_shutdown(self, value: float) -> None:
         """Set the over-temperature shutdown threshold"""
         self.temperature_sensor.temperature_shutdown = value
+
+    def report(self) -> dict[str, float]:
+        """Get a report of all channel parameters"""
+        return {
+            "temperature": self.temperature,
+            "hysteresis": self.hysteresis,
+            "ot_shutdown": self.ot_shutdown,
+            "load_power": None,  # Placeholder for load power
+        }
+
+
+class Channel(SensorChannel):
+    """Represents a single load channel with temperature monitoring and power control."""
+
+    def __init__(
+        self,
+        pwm_channel: PWMChannel,
+        temperature_sensor: LM75,
+        max_power: float | None = None,
+    ):
+        if max_power is None:
+            max_power = 5  # 5 Watts
+        self.pwm_channel = pwm_channel
+        self.temperature_sensor = temperature_sensor
+        self.max_power = max_power
 
     # === PCA9685 properties ===
     @property

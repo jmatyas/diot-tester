@@ -1,4 +1,5 @@
 from diot.cards import DIOTCard
+from diot.utils.ftdi_utils import find_serial_numbers
 
 
 class DIOTCrateManager:
@@ -22,8 +23,25 @@ class DIOTCrateManager:
         """
         self.cards = {}
         if serial_numbers:
-            for serial in serial_numbers:
-                self.add_card(serial, frequency, ot_shutdown, hysteresis)
+            # TODO:use regular expression to check if serial numbers are in the format "DTxx"
+            # where xx is 0-8
+            if not all(
+                isinstance(serial, str) and serial.startswith("DT")
+                for serial in serial_numbers
+            ):
+                raise ValueError("Serial numbers must be in the format 'DTxx'")
+
+            serial_numbers = sorted(serial_numbers, key=lambda x: int(x[2:]))
+        else:
+            print("Serial numbers not provided. Searching for available cards...")
+            discovered = find_serial_numbers()
+            if not discovered:
+                print("No DIOT cards (with DTxx serial numbers) found.")
+                return
+            serial_numbers = sorted(discovered, key=lambda x: int(x[2:]))
+
+        for serial in serial_numbers:
+            self.add_card(serial, frequency, ot_shutdown, hysteresis)
 
     def add_card(
         self,
@@ -32,10 +50,6 @@ class DIOTCrateManager:
         ot_shutdown: float = 80,
         hysteresis: float = 75,
     ) -> None:
-        """Add a card to the mangager by serial number"""
-        if not serial.startswith("DT"):
-            raise ValueError("Serial number must start with 'DT'")
-
         try:
             card = DIOTCard(
                 serial=serial,
@@ -64,10 +78,3 @@ class DIOTCrateManager:
         """Turn off all loads on all cards"""
         for card in self.cards.values():
             card.shutdown_all_loads()
-
-    def get_all_measurements(self) -> dict[str, dict]:
-        """Get measurements from all cards"""
-        measurements = {}
-        for serial, card in self.cards.items():
-            measurements[serial] = card.get_measurements()
-        return measurements

@@ -10,13 +10,14 @@ from chips.mcp3221 import MCP3221
 from chips.pca9544 import PCA9544A
 from adafruit_pca9685 import PCA9685
 
-from diot.channel import Channel
+from diot.channel import Channel, SensorChannel
 from diot.utils.i2c_utils import make_i2c_graph
-
 
 # it corresponds to "93C46" chip; possible values are "93C56" and "93C66"
 # but on DIOT cards we use "93C46" (0x46)
 FTDI_EEPROM_CHIP_TYPE = 0x46
+
+SOFT_OT_THRESHOLD = 5  # degrees Celsius
 
 
 class DIOTCard(I2C):
@@ -44,15 +45,22 @@ class DIOTCard(I2C):
             serial: FTDI serial number in format "DTxx" where xx is 0-8
 
         """
+
+        # TODO: check if providing serial number overrides url and what happens
+        # when no serial number is provided and multiple FTDI devices are
+        # connected to the system
         if serial is not None:
             url = f"ftdi://::{serial}/1"
         # needed for '_I2C' from pyFTDI to work if there are more than one FTDI
         # devices connected to the system
         os.environ["BLINKA_FT232H"] = url
 
+        # No reinitialization is needed in case the OT event happens - power is
+        # turned off only of heaters (and I2C buffers), and not of the ICs
         self.init_i2c(frequency=frequency)
         self.init_devices()
         self.init_config(ot_shutdown, hysteresis)
+        self._initialized = True
 
     def init_i2c(self, frequency: int = 100000) -> None:
         self.deinit()
@@ -113,12 +121,12 @@ class DIOTCard(I2C):
             Channel(self.pwm_chips[0].channels[i], self.lm75s[i]) for i in range(16)
         ] + [Channel(self.aux_load, self.aux_lm75, max_power=3)]
 
-        self.diot_conn_lm75s = [
-            LM75(self.i2c_buses[3], device_address=0x49),  # P6 connector
-            LM75(self.i2c_buses[3], device_address=0x4A),  # P1 connector
+        self.diot_conn_channels = [
+            SensorChannel(LM75(self.i2c_buses[3], device_address=0x49)),  # P6 connector
+            SensorChannel(LM75(self.i2c_buses[3], device_address=0x4A)),  # P1 connector
         ]
 
-    def init_config(self, ot_shutdown=80, hysteresis=75) -> None:
+    def init_config(self, ot_shutdown: float = 80, hysteresis: float = 75) -> None:
         """Initialize card with default settings"""
         # enable auto-increment so we can write/read registers using CP structures
         for pwm in self.pwm_chips:
@@ -127,6 +135,11 @@ class DIOTCard(I2C):
 
         for channel in self.load_channels:
             channel.set_configuration(ot_shutdown=ot_shutdown, hysteresis=hysteresis)
+
+        # FIXME: now it is assumed that software OT shutdown is set to SOFT_OT_THRESHOLD
+        # degrees below the hardware shutdown threshold.
+        self._soft_ot_shutdown = ot_shutdown - SOFT_OT_THRESHOLD
+        self._soft_hysteresis = hysteresis - SOFT_OT_THRESHOLD
 
     @property
     def card_id(self) -> str:
@@ -159,7 +172,7 @@ class DIOTCard(I2C):
         voltage_reading = self.v_monitor.voltage
         return voltage_reading * 4
 
-    def scan(self, write=False) -> list[int]:
+    def scan(self, write: bool = False) -> list[int]:
         """Scan for I2C devices on the bus"""
         # Override method from busio.i2c.scan, so it accepts one positional
         # argument
@@ -190,18 +203,6 @@ class DIOTCard(I2C):
             )
         return self.load_channels[channel_index]
 
-    def get_measurements(self) -> dict[str, dict]:
-        """Get all measurements from the card"""
-        channel_reports = {}
-        for i, channel in enumerate(self.load_channels):
-            channel_reports[i] = channel.report()
-
-        return {
-            "voltage": self.voltage,
-            "current": self.current,
-            "channels": channel_reports,
-        }
-
     def set_all_load_power(self, power: float) -> None:
         """Set the same load power for all channels"""
         for channel in self.load_channels:
@@ -210,3 +211,18 @@ class DIOTCard(I2C):
     def shutdown_all_loads(self) -> None:
         """Turn off all loads"""
         self.set_all_load_power(0)
+
+    def report(self):
+        """Get a report of all channel parameters"""
+        rep = {
+            "voltage": self.voltage,
+            "current": self.current,
+            "channels": [
+                channel.report()
+                for channel in self.load_channels + self.diot_conn_channels
+            ],
+        }
+        ot_ev = any(
+            [ch["temperature"] >= self._soft_ot_shutdown for ch in rep["channels"]]
+        )
+        return ot_ev, rep
