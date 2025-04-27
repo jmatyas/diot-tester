@@ -78,3 +78,67 @@ class DIOTCrateManager:
         """Turn off all loads on all cards"""
         for card in self.cards.values():
             card.shutdown_all_loads()
+
+    def set_card_load_power(self, serial: str, power: float):
+        """Set the load power for a specific card evenly across all channels"""
+        if serial not in self.cards:
+            raise KeyError(f"Card with serial {serial} not found")
+        card = self.cards[serial]
+        if power > card.max_load_power:
+            print(
+                f"Power {power} W exceeds maximum load power {card.max_load_power} W"
+            )
+            print(
+                f"Setting load power to maximum {card.max_load_power} W instead"
+            )
+            # raise ValueError(
+            #     f"Power {power} W exceeds maximum load power {card.max_load_power} W"
+            # )
+            power = card.max_load_power
+        power_per_channel = power / len(card.load_channels)
+        card.set_all_load_power(power_per_channel)
+
+    def report_cards(
+        self, shutdown_card_on_ot: bool, elapsed_time: float | None = None
+    ):
+        # Don't move to numpy yet, as numpy arrays are less efficient for
+        # appending data than lists. Even though we theoretically know the
+        # number of measurements (duration / interval), we don't know how many
+        # measurements will be taken before the shutdown event occurs (which
+        # will break the loop). Moreove, we don't know how long will it take
+        # to enumerate the cards and get the measurements, so we the number of
+        # measurements is not known in advance.
+        # See: https://github.com/numpy/numpy/issues/17090#issuecomment-674421168
+        measurements = []
+        combined_results = [
+            card.report() for card in self.cards.values()
+        ]
+        soft_ot_status_per_card = [(report["card_serial"], report["ot_ev"]) for report in combined_results]
+
+        for report in combined_results:
+            card_id = report["card_serial"]
+            card_ot_ev = report["ot_ev"]
+            voltage = report["voltage"]
+            current = report["current"]
+
+            # TODO: add a check if the card has been already shut down
+            # and skip the shutdown if it has
+            # TODO: maybe use threading to add actual ot monitoring in software?
+            if shutdown_card_on_ot and card_ot_ev:
+                self.cards[card_id].shutdown_all_loads()
+                print(f"Card {card_id} shutdown due to over-temperature")
+
+            for ch_ix, ch_data in enumerate(report["channels"]):
+                row = {
+                    "elapsed_time": elapsed_time,
+                    "card_serial": card_id,
+                    "channel": ch_ix,
+                    "temperature": ch_data["temperature"],
+                    "load_power": ch_data["load_power"],
+                    "ot_shutdown_t": ch_data["ot_shutdown"],
+                    "ot_ev": card_ot_ev,
+                    "voltage": voltage,
+                    "current": current,
+                }
+                measurements.append(row)
+        return soft_ot_status_per_card, measurements

@@ -126,6 +126,9 @@ class DIOTCard(I2C):
             SensorChannel(LM75(self.i2c_buses[3], device_address=0x4A)),  # P1 connector
         ]
 
+        # don't use the 3.3V channel for load power
+        self.max_load_power = sum([ch.max_power for ch in self.load_channels[:-1]])
+
     def init_config(self, ot_shutdown: float = 80, hysteresis: float = 75) -> None:
         """Initialize card with default settings"""
         # enable auto-increment so we can write/read registers using CP structures
@@ -205,7 +208,7 @@ class DIOTCard(I2C):
 
     def set_all_load_power(self, power: float) -> None:
         """Set the same load power for all channels"""
-        for channel in self.load_channels:
+        for channel in self.load_channels[:-1]:
             channel.load_power = power
 
     def shutdown_all_loads(self) -> None:
@@ -214,7 +217,10 @@ class DIOTCard(I2C):
 
     def report(self):
         """Get a report of all channel parameters"""
+        # TODO: make ot_ev per channel, not per card
+        # TODO: try to interface with I2C devices less frequently
         rep = {
+            "card_serial": self.card_id,
             "voltage": self.voltage,
             "current": self.current,
             "channels": [
@@ -225,4 +231,5 @@ class DIOTCard(I2C):
         ot_ev = any(
             [ch["temperature"] >= self._soft_ot_shutdown for ch in rep["channels"]]
         )
-        return ot_ev, rep
+        rep["ot_ev"] = ot_ev
+        return rep

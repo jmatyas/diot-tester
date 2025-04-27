@@ -76,7 +76,12 @@ class Channel(SensorChannel):
     def load_power(self, power: float) -> None:
         """Set the load power in Watts"""
         if power > self.max_power:
-            raise ValueError(f"Power must be less than {self.max_power} W")
+            # raise ValueError(f"Power must be less than {self.max_power} W")
+            power = self.max_power
+            print(
+                f"Power set to maximum value of {self.max_power} W. "
+                f"Requested power was {power} W."
+            )
 
         self.pwm_channel.duty_cycle = int(power / self.max_power * 0xFFFF)
 
