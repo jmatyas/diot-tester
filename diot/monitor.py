@@ -79,6 +79,7 @@ class MonitoringSession:
         stop_on_ot: bool = False,
         shutdown_at_end: bool = True,
         save_every_iteration: bool = True,
+        serials_to_monitor: list[str] | None = None,
     ):
         self.measurements = []
         t0 = time.monotonic()
@@ -91,16 +92,14 @@ class MonitoringSession:
                 elapsed_time = t - t0
 
                 since_prev_t = t - prev_t
-                if since_prev_t < interval:
-                    time.sleep(min(interval - since_prev_t, SLEEP_TIME))
-                else:
+
+                # prev_t == t0 should be true only for the first iteration
+                if since_prev_t >= interval or prev_t == t0:
                     soft_ot_status, measurements = self.crate_manager.report_cards(
-                        shutdown_card_on_ot, elapsed_time
+                        shutdown_card_on_ot, elapsed_time, serials_to_monitor
                     )
                     pprint.pprint(measurements)
-                    ot_ev_detected = any(
-                        [status for _, status in soft_ot_status]
-                    )
+                    ot_ev_detected = any(soft_ot_status)
                     self.measurements.extend(measurements)
 
                     if save_every_iteration:
@@ -111,6 +110,10 @@ class MonitoringSession:
                         print("OT event detected. Stopping monitoring.")
                         break
                     prev_t = t
+                else:
+                    time.sleep(
+                        min(interval - since_prev_t, SLEEP_TIME)
+                    )
         finally:
             if not save_every_iteration:
                 self._write_measurements(self.measurements)

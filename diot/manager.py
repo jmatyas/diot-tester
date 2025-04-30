@@ -79,18 +79,13 @@ class DIOTCrateManager:
         for card in self.cards.values():
             card.shutdown_all_loads()
 
-    def set_card_load_power(self, serial: str, power: float):
-        """Set the load power for a specific card evenly across all channels"""
+    def _set_single_card_load_power(self, serial: str, power: float):
         if serial not in self.cards:
             raise KeyError(f"Card with serial {serial} not found")
         card = self.cards[serial]
         if power > card.max_load_power:
-            print(
-                f"Power {power} W exceeds maximum load power {card.max_load_power} W"
-            )
-            print(
-                f"Setting load power to maximum {card.max_load_power} W instead"
-            )
+            print(f"Power {power} W exceeds maximum load power {card.max_load_power} W")
+            print(f"Setting load power to maximum {card.max_load_power} W instead")
             # raise ValueError(
             #     f"Power {power} W exceeds maximum load power {card.max_load_power} W"
             # )
@@ -98,8 +93,23 @@ class DIOTCrateManager:
         power_per_channel = power / len(card.load_channels)
         card.set_all_load_power(power_per_channel)
 
+    def set_cards_load_power(self, serial: list[str] | str, power: list[float] | float):
+        if isinstance(serial, str):
+            serial = [serial]
+        if isinstance(power, float):
+            power = [power] * len(serial)
+        if len(serial) != len(power):
+            raise ValueError("Serial numbers and power lists must have the same length")
+
+        print(serial, power)
+        for s, p in zip(serial, power, strict=True):
+            self._set_single_card_load_power(s, p)
+
     def report_cards(
-        self, shutdown_card_on_ot: bool, elapsed_time: float | None = None
+        self,
+        shutdown_card_on_ot: bool,
+        elapsed_time: float | None = None,
+        serials: list[str] | None = None,
     ):
         # Don't move to numpy yet, as numpy arrays are less efficient for
         # appending data than lists. Even though we theoretically know the
@@ -110,20 +120,21 @@ class DIOTCrateManager:
         # measurements is not known in advance.
         # See: https://github.com/numpy/numpy/issues/17090#issuecomment-674421168
         measurements = []
-        combined_results = [
-            card.report() for card in self.cards.values()
-        ]
-        soft_ot_status_per_card = [(report["card_serial"], report["ot_ev"]) for report in combined_results]
-
+        if serials is None:
+            serials = self.cards.keys()
+        # it looks like getting report from a single card takes just above 1 seconds
+        # after all it's 18 temp channels and 2 ADCs using I2C over USB
+        combined_results = [self.cards[serial].report() for serial in serials]
+        ot_per_card = []
         for report in combined_results:
             card_id = report["card_serial"]
-            card_ot_ev = report["ot_ev"]
+            card_ot_ev = any([ch["ot_ev"] for ch in report["channels"]])
+            ot_per_card.append(card_ot_ev)
             voltage = report["voltage"]
             current = report["current"]
 
             # TODO: add a check if the card has been already shut down
             # and skip the shutdown if it has
-            # TODO: maybe use threading to add actual ot monitoring in software?
             if shutdown_card_on_ot and card_ot_ev:
                 self.cards[card_id].shutdown_all_loads()
                 print(f"Card {card_id} shutdown due to over-temperature")
@@ -136,9 +147,9 @@ class DIOTCrateManager:
                     "temperature": ch_data["temperature"],
                     "load_power": ch_data["load_power"],
                     "ot_shutdown_t": ch_data["ot_shutdown"],
-                    "ot_ev": card_ot_ev,
+                    "ot_ev": ch_data["ot_ev"],
                     "voltage": voltage,
                     "current": current,
                 }
                 measurements.append(row)
-        return soft_ot_status_per_card, measurements
+        return ot_per_card, measurements

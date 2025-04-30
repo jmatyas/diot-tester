@@ -136,7 +136,7 @@ class DIOTCard(I2C):
             read_mode1 = pwm.mode1_reg
             pwm.mode1_reg = read_mode1 | 0x20
 
-        for channel in self.load_channels:
+        for channel in self.load_channels + self.diot_conn_channels:
             channel.set_configuration(ot_shutdown=ot_shutdown, hysteresis=hysteresis)
 
         # FIXME: now it is assumed that software OT shutdown is set to SOFT_OT_THRESHOLD
@@ -217,19 +217,16 @@ class DIOTCard(I2C):
 
     def report(self):
         """Get a report of all channel parameters"""
-        # TODO: make ot_ev per channel, not per card
-        # TODO: try to interface with I2C devices less frequently
+        channels_reports = []
+        for channel in self.load_channels + self.diot_conn_channels:
+            rep = channel.report()
+            rep["ot_ev"] = rep["temperature"] >= self._soft_ot_shutdown
+            channels_reports.append(rep)
+
         rep = {
             "card_serial": self.card_id,
             "voltage": self.voltage,
             "current": self.current,
-            "channels": [
-                channel.report()
-                for channel in self.load_channels + self.diot_conn_channels
-            ],
+            "channels": channels_reports,
         }
-        ot_ev = any(
-            [ch["temperature"] >= self._soft_ot_shutdown for ch in rep["channels"]]
-        )
-        rep["ot_ev"] = ot_ev
         return rep
