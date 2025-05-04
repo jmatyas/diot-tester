@@ -1,15 +1,14 @@
-from adafruit_blinka.microcontroller.ftdi_mpsse.mpsse.i2c import I2C as _I2C
-from busio import I2C
 import os
 
+from adafruit_blinka.microcontroller.ftdi_mpsse.mpsse.i2c import I2C as _I2C
+from adafruit_pca9685 import PCA9685
+from busio import I2C
 from pyftdi.eeprom import FtdiEeprom
 
 from chips.eeprom_24aa025e48 import EEPROM24AA02E48
 from chips.lm75 import LM75
 from chips.mcp3221 import MCP3221
 from chips.pca9544 import PCA9544A
-from adafruit_pca9685 import PCA9685
-
 from diot.channel import Channel, SensorChannel
 from diot.utils.i2c_utils import make_i2c_graph
 

@@ -10,8 +10,13 @@ For NGL202 with:
 - Supports output on/off control
 """
 
+import argparse
+import logging
 import time
+
 import pyvisa
+
+logger = logging.getLogger(__name__)
 
 MAX_V = 20
 MIN_V = 0
@@ -49,16 +54,16 @@ class RSPowerSupply:
                 f"TCPIP::{self.address}::INSTR",
             )
             self.instrument.timeout = self.timeout
-            idn = self.idn()
-            print(f"Connected to: {idn}")
+            idn = self.idn().strip("\n")
+            logger.info(f"Connected to: {idn}")
 
             # Check if it's an R&S power supply
             if "Rohde&Schwarz" not in idn:
-                print(
-                    "Warning: Connected device may not be a Rohde & Schwarz power supply"
+                logger.warning(
+                    "Connected device may not be a Rohde & Schwarz power supply"
                 )
         except Exception as e:
-            print(f"Connection failed: {e}")
+            logger.error(f"Connection failed: {e}", exc_info=True)
             raise e
 
     def disconnect(self):
@@ -66,7 +71,7 @@ class RSPowerSupply:
         if self.instrument:
             self.instrument.close()
             self.instrument = None
-            print("Connection closed")
+            logger.info("Connection closed")
 
     def __enter__(self):
         """Context manager entry."""
@@ -168,7 +173,7 @@ class RSPowerSupply:
     def get_output_state(self):
         """Get the output state for a specific channel."""
         response = self.query("OUTP?")
-        print(f"OUTP? response: {int(response)}")
+        logger.debug(f"OUTP? response: {int(response)}")
         return int(response) == 1 or response.lower() == "on"
 
     def set_ovp(self, voltage_lvl, enable=True):
@@ -188,36 +193,106 @@ class RSPowerSupply:
         self.cmd(f"VOLT:PROT {state}")
 
 
-# Example usage
-if __name__ == "__main__":
-    # Example usage of the class
-    psu = RSPowerSupply("10.42.0.245")
+def main():
+    """Command line interface for the R&S Power Supply."""
+    parser = argparse.ArgumentParser(
+        description="Control Rohde & Schwarz power supply via command line.",
+        epilog="Example: python rs_power_supply.py --ip 10.42.0.245 --channel 1 --voltage 12 --current 1 --output on",
+    )
+
+    # Required arguments
+    parser.add_argument(
+        "--ip", default="10.42.0.245", help="IP address of the power supply"
+    )
+
+    # Optional arguments
+    parser.add_argument(
+        "--channel",
+        type=int,
+        choices=[1, 2],
+        default=1,
+        help="Channel to control (1 or 2)",
+    )
+    parser.add_argument(
+        "--voltage",
+        "-v",
+        type=float,
+        help=f"Set voltage (between {MIN_V} and {MAX_V} V)",
+    )
+    parser.add_argument(
+        "--current",
+        "-i",
+        type=float,
+        help=f"Set current (between {MIN_I} and {MAX_I} A)",
+    )
+    parser.add_argument(
+        "--output", choices=["on", "off"], help="Set output state (on or off)"
+    )
+    parser.add_argument(
+        "--status", action="store_true", help="Report current settings and measurements"
+    )
+    parser.add_argument(
+        "--timeout", type=int, default=5, help="Connection timeout in seconds"
+    )
+
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO)
 
     try:
-        print(f"IDN: {psu.idn()}")
-        psu.reset()
-        psu.clear_status()
-        psu.select_channel(1)
-        print(f"Selected channel: {psu.query_channel()}")
-        print(f"Current voltage: {psu.get_voltage()}")
-        print(f"Current current: {psu.get_current()}")
-        print(f"Output state: {psu.get_output_state()}")
-        psu.set_voltage(12.0)
-        psu.set_current(2.0)
-        psu.set_output_state(True)
-        print(f"Set voltage: {psu.get_voltage()}")
-        print(f"Set current: {psu.get_current()}")
-        print(f"Output state: {psu.get_output_state()}")
-        time.sleep(2)
-        print(f"Measured voltage: {psu.measure_voltage()}")
-        print(f"Measured current: {psu.measure_current()}")
-        print(f"Measured values: {psu.measure()}")
+        psu = RSPowerSupply(args.ip, timeout_s=args.timeout)
 
-        # psu.set_output_state(False)
-        # print(f"Output state: {psu.get_output_state()}")
-        # print(f"Measured voltage: {psu.measure_voltage()}")
-        # print(f"Measured current: {psu.measure_current()}")
-        # print(f"Measured values: {psu.measure()}")
+        # Select channel
+        psu.select_channel(args.channel)
+        logger.debug(f"Selected channel: {args.channel}")
+
+        # Set voltage if specified
+        if args.voltage is not None:
+            psu.set_voltage(args.voltage)
+            logger.debug(f"Voltage set to {args.voltage} V")
+
+        # Set current if specified
+        if args.current is not None:
+            psu.set_current(args.current)
+            logger.debug(f"Current set to {args.current} A")
+
+        # Set output state if specified
+        if args.output is not None:
+            enable = args.output == "on"
+            psu.set_output_state(enable)
+            state = "ON" if enable else "OFF"
+            logger.info(f"Output set to {state}")
+
+        # Always report status if requested or if no settings were changed
+        if args.status or (
+            args.voltage is None and args.current is None and args.output is None
+        ):
+            v_set = psu.get_voltage()
+            i_set = psu.get_current()
+            output = "ON" if psu.get_output_state() else "OFF"
+
+            print("\nCurrent settings:")
+            print(f" - channel: {psu.query_channel()}")
+            print(f" - voltage setting: {v_set:.3f} V")
+            print(f" - current setting: {i_set:.3f} A")
+            print(f" - output state: {output}")
+
+            # Only show measurements if output is on
+            if psu.get_output_state():
+                v_measured, i_measured = psu.measure()
+                print("\nMeasured values:")
+                print(f" - voltage: {v_measured:.3f} V")
+                print(f" - current: {i_measured:.3f} A")
+                print(f" - power: {v_measured * i_measured:.3f} W")
+
+    except Exception as e:
+        print(f"Error: {e}")
 
     finally:
-        psu.disconnect()
+        if "psu" in locals():
+            psu.disconnect()
+
+
+# Example usage
+if __name__ == "__main__":
+    main()

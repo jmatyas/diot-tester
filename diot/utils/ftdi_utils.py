@@ -4,6 +4,9 @@ from pyftdi.eeprom import FtdiEeprom
 from pyftdi.ftdi import Ftdi
 from pyftdi.misc import hexdump
 import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 MODEL = "93C46"
 CHIP_TYPE = 0x46
@@ -80,11 +83,11 @@ def configure_ftdi(
     ft_ee._chip = CHIP_TYPE
     try:
         if ft_ee.has_serial:
-            print("FTDI has SN already assigned: ", ft_ee.serial)
+            logger.warning(f"FTDI has SN already assigned: {ft_ee.serial}")
             if force:
-                print("Force writing new configuration...")
+                logger.info("Force writing new configuration...")
             else:
-                print("Aborting...")
+                logger.info("Aborting...")
                 return
     except AttributeError:
         pass
@@ -160,9 +163,8 @@ def find_serial_numbers(url="ftdi://ftdi:232h:/1"):
     devices = Ftdi.list_devices(url)
     for dev in devices:
         vid, pid, bus, address, sn, _, desc = dev[0]
-        # print(
-        #     f"VID:PID: {vid:04X}:{pid:04X}, Bus: {bus}, Address: {address}, Serial: {sn}, Desc: {desc}"
-        # )
+        logger.debug(f"Found device: {dev}")
+        logger.debug(f"VID:PID: {vid:04X}:{pid:04X}, Bus: {bus}, Address: {address}, Serial: {sn}, Desc: {desc}")
         if sn:
             serials.append(sn)
     return serials
@@ -173,11 +175,11 @@ def configure_all_ftdis(force=True, dry_run=True, dump=False):
     for ix, dev in enumerate(devices):
         vid, pid, bus, address = dev
         if vid != 0x0403 or pid != 0x6014:
-            print(f"Device: {dev} is not FTDI FT232H. Skipping...")
+            logger.debug(f"Device: {dev} is not FTDI FT232H. Skipping...")
             continue
         url = f"ftdi://:232h:{bus:x}:{address:x}/1"
         new_serial = f"DT{ix:02d}"
-        print(f"Configuring device {dev} with new serial: {new_serial}")
+        logger.warning(f"Configuring device {dev} with new serial: {new_serial}")
         configure_ftdi(
             url=url,
             manufacturer=MANUFACTURER,
@@ -201,6 +203,9 @@ if __name__ == "__main__":
     serial = f"DT{args.slot:02d}"
 
     devs = find_devices()
+    if not devs:
+        print("No FTDI devices found. Please connect the device.")
+        sys.exit(1)
     if len(devs) > 1:
         print("More than one FTDI device found. Please specify the device.")
         print("Devices found:")

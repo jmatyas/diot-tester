@@ -1,5 +1,10 @@
-from chips.lm75 import LM75
+import logging
+
 from adafruit_pca9685 import PWMChannel
+
+from chips.lm75 import LM75
+
+logger = logging.getLogger(__name__)
 
 
 class SensorChannel:
@@ -23,7 +28,7 @@ class SensorChannel:
     def hysteresis(self) -> float:
         """Get the hysteresis temperature setting"""
         if not hasattr(self, "_hysteresis_cached"):
-            print("Hysteresis not cached, getting from sensor")
+            logger.debug("Hysteresis not cached, getting from sensor")
             self.get_hysteresis()
         return self._hysteresis_cached
 
@@ -42,7 +47,7 @@ class SensorChannel:
     def ot_shutdown(self) -> float:
         """Get the over-temperature shutdown setting"""
         if not hasattr(self, "_ot_shutdown_cached"):
-            print("OT shutdown not cached, getting from sensor")
+            logger.debug("OT shutdown not cached, getting from sensor")
             self.get_ot_shutdown()
         return self._ot_shutdown_cached
 
@@ -116,7 +121,7 @@ class Channel(SensorChannel):
     def load_power(self) -> float:
         """Get the current load power in Watts"""
         if not hasattr(self, "_load_power_cached"):
-            print("Load power not cached, getting from PWM channel")
+            logger.debug("Load power not cached, getting from PWM channel")
             self.get_load_power()
         return self._load_power_cached
 
@@ -126,7 +131,7 @@ class Channel(SensorChannel):
         if power > self.max_power:
             # raise ValueError(f"Power must be less than {self.max_power} W")
             power = self.max_power
-            print(
+            logger.debug(
                 f"Power set to maximum value of {self.max_power} W. "
                 f"Requested power was {power} W."
             )
