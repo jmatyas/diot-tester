@@ -135,7 +135,8 @@ class DIOTCrateManager:
                 - rates_dict contains temperature change rates for each channel
         """
         if card_id not in self._temp_history:
-            return False, {}
+            logger.warning(f"Card {card_id} not found in history")
+            return False, {}, {}
 
         card_history = self._temp_history[card_id]
 
@@ -160,23 +161,28 @@ class DIOTCrateManager:
         )
 
         if not history_complete:
-            return False, {}
+            logger.debug(
+                f"Card {card_id} has not enough history data to check steady state after {elapsed_time:.2f} seconds"
+            )
+            return False, {}, {}
 
         # AVERAGE temperature change rate (K per minute) for each channel during
         # the last minute
         rates = {}
-        # print(f"Card {card_id} temperature history:")
-        for ch_idx, ch_history in card_history.items():
-            latest_time = ch_history[-1][0]
-            window_start_time = latest_time - self._min_history_duration
+        channels_steady_state = {}
 
-            # TODO: don't need to calculate this for all channels, since we know
-            # that each channel was measured at the same time
-            window_start_idx = 0
-            for i, (t, _) in enumerate(ch_history):
-                if t >= window_start_time:
-                    window_start_idx = i
-                    break
+        window_start_idx = 0
+        for ch_idx, ch_history in card_history.items():
+            if ch_idx == 0:
+                # we need to calculate this only for one channel, since we know
+                # that all channels were measured at roughly the same time
+                latest_time = ch_history[-1][0]
+                window_start_time = latest_time - self._min_history_duration
+
+                for i, (t, _) in enumerate(ch_history):
+                    if t >= window_start_time:
+                        window_start_idx = i
+                        break
 
             first_time, first_temp = ch_history[window_start_idx]
             last_time, last_temp = ch_history[-1]
@@ -196,12 +202,14 @@ class DIOTCrateManager:
                 logger.debug(f"\tsince_start = {elapsed_time:.2f} s")
             rates[ch_idx] = rate_per_minute
 
-        # Check if all channels are in steady state
-        is_steady = all(
-            abs(rate) <= self._steady_state_threshold for rate in rates.values()
-        )
+            is_channel_steady = abs(rate_per_minute) <= self._steady_state_threshold
+            channels_steady_state[ch_idx] = is_channel_steady
+        is_steady = all(channels_steady_state.values())
 
-        return is_steady, rates
+        logger.debug(f"Card: {card_id} is in steady state: {is_steady}")
+        logger.debug(f"\tsteady state per channel: {channels_steady_state}")
+
+        return is_steady, channels_steady_state, rates
 
     def report_cards(
         self,
@@ -246,13 +254,10 @@ class DIOTCrateManager:
                     self._temp_history[card_id][ch_ix].append((elapsed_time, temp))
 
             # Check for steady state
-            is_steady, temp_rates = self._check_steady_state(card_id, elapsed_time)
-            steady_states[card_id] = {"is_steady": is_steady, "temp_rates": temp_rates}
-
-            # if is_steady:
-            #     print(
-            #         f"Card {card_id} has reached steady state (temperature change ≤ 1K/minute)"
-            #     )
+            is_card_ss, ss_per_ch, temp_rates = self._check_steady_state(
+                card_id, elapsed_time
+            )
+            steady_states[card_id] = {"is_steady": is_card_ss, "temp_rates": temp_rates}
 
             for ch_ix, ch_data in enumerate(report["channels"]):
                 row = {
@@ -265,7 +270,7 @@ class DIOTCrateManager:
                     "ot_ev": ch_data["ot_ev"],
                     "voltage": voltage,
                     "current": current,
-                    "steady_state": is_steady,
+                    "steady_state": ss_per_ch.get(ch_ix, False),
                     "temp_rate_per_min": temp_rates.get(ch_ix, None),
                 }
                 measurements.append(row)

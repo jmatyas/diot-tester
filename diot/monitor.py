@@ -34,7 +34,7 @@ class MonitoringSession:
 
         self._file_initialized = False
         # Track if steady state has been reached for reporting to user
-        self._steady_state_reached = {}
+        self._ss_reached = {}
 
     def _initialize_csv(self, fieldnames=None):  # TODO: add fieldnames
         if not self._file_initialized:
@@ -131,25 +131,20 @@ class MonitoringSession:
                             shutdown_card_on_ot, elapsed_time, serials_to_monitor
                         )
                     )
-                    # pprint.pprint(measurements)
                     ot_ev_detected = any(soft_ot_status)
                     self.measurements.extend(measurements)
 
                     # Check for newly reached steady states
                     all_steady = True
                     for card_id, state_info in steady_states.items():
-                        all_steady = all_steady and state_info["is_steady"]
+                        # state_info consists of state info for each channel
+                        is_card_ss = state_info["is_steady"]
+                        all_steady &= is_card_ss
 
-                        # Report when card first reaches steady state
-                        if (
-                            state_info["is_steady"]
-                            and not self._steady_state_reached.get(
-                                card_id, (False, 0.0)
-                            )[0]
-                        ):
-                            self._steady_state_reached[card_id] = (True, elapsed_time)
+                        if is_card_ss and card_id not in self._ss_reached:
+                            self._ss_reached[card_id] = (True, elapsed_time)
                             logger.info(
-                                f"Card {card_id} has reached steady state (temperature change ≤ 1K/minute) at {elapsed_time:.2f} seconds"
+                                f"Card {card_id} has reached steady state at {elapsed_time:.2f} seconds"
                             )
 
                             logger.debug("  Temperature rates (K/min):")
@@ -185,12 +180,12 @@ class MonitoringSession:
             )
             logger.info(f"Data saved to {self.file_path}")
 
-            if self._steady_state_reached:
+            if self._ss_reached:
                 logger.info("Steady state reached for the following cards:")
                 for card_id, (
                     reached_steady,
                     elapsed_time,
-                ) in self._steady_state_reached.items():
+                ) in self._ss_reached.items():
                     if reached_steady:
                         logger.info(
                             f"  Card {card_id}: Steady state reached after {elapsed_time:.2f} seconds"
