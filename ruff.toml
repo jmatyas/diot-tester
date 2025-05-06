@@ -3,5 +3,8 @@ indent-width = 4
 target-version = "py311"
 
 [lint]
-extend-select = ["B", "A", "SIM", "TID", "PTH", "UP", "RUF", "ANN"]
-ignore = ["UP012", "RUF012", "RUF010", "PTH123", "ANN201", "ANN202"]
+extend-select = ["B", "A", "SIM", "TID", "PTH", "UP", "RUF", "ANN", "D"]
+ignore = ["UP012", "RUF012", "RUF010", "PTH123", "ANN201", "ANN202", "ANN204"]
+
+[lint.pydocstyle]
+convention = "google"

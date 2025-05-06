@@ -8,6 +8,9 @@ from diot.utils.ftdi_utils import find_serial_numbers
 logger = logging.getLogger(__name__)
 
 
+SECONDS_PER_BOARD = 1.2
+
+
 class DIOTCrateManager:
     """Manager for multiple DIOT cards in a crate."""
 
@@ -44,13 +47,17 @@ class DIOTCrateManager:
                 return
             serial_numbers = sorted(discovered, key=lambda x: int(x[2:]))
 
-        self._temp_history = defaultdict(
-            lambda: defaultdict(
-                lambda: deque(maxlen=60)
-            )  # Store up to 60 readings (for 1 minute)
-        )
         self._steady_state_threshold = 1.0  # K per minute
-        self._min_history_duration = 60.0  # seconds
+        self._min_history_duration = 120.0  # seconds
+
+        hist_depth = (
+            int(self._min_history_duration * (SECONDS_PER_BOARD / len(serial_numbers)))
+            + 1
+        )
+        logger.debug(f"History depth: {hist_depth}")
+        self._temp_history = defaultdict(
+            lambda: defaultdict(lambda: deque(maxlen=hist_depth))
+        )
 
         for serial in serial_numbers:
             self.add_card(serial, frequency, ot_shutdown, hysteresis)
@@ -74,20 +81,20 @@ class DIOTCrateManager:
         except (
             Exception
         ) as e:  # TODO: specify only one exception type - probably I2CNACK
-            logger.error(f"Failed to connect to card {serial}: {str(e)}")
+            logger.error(f"Failed to connect to card {serial}: {str(e)}", exc_info=True)
 
     def get_card(self, serial: str) -> DIOTCard:
-        """Get a specific card by serial number"""
+        """Get a specific card by serial number."""
         if serial not in self.cards:
             raise KeyError(f"Card with serial {serial} not found")
         return self.cards[serial]
 
     def get_all_cards(self) -> dict[str, DIOTCard]:
-        """Get all connected cards"""
+        """Get all connected cards."""
         return self.cards
 
     def shutdown_all_loads(self) -> None:
-        """Turn off all loads on all cards"""
+        """Turn off all loads on all cards."""
         for card in self.cards.values():
             card.shutdown_all_loads()
 
@@ -161,9 +168,16 @@ class DIOTCrateManager:
         )
 
         if not history_complete:
-            logger.debug(
-                f"Card {card_id} has not enough history data to check steady state after {elapsed_time:.2f} seconds"
+            debug_info = (
+                f"Card {card_id} has not enough history data to check steady state"
+                f" after {elapsed_time:.2f} seconds\n"
+                f"\tlength of history (on single channel): {len(card_history[0])}\n"
+                f"\tch_history[-1][0] - ch_history[0][0]: "
+                f"{card_history[0][-1][0] - card_history[0][0][0]:.2f} seconds\n"
+                f"\tmin history duration: {self._min_history_duration:.2f} seconds"
             )
+
+            logger.debug(debug_info)
             return False, {}, {}
 
         # AVERAGE temperature change rate (K per minute) for each channel during

@@ -33,8 +33,7 @@ class MonitoringSession:
         self.file_path = save_dir / f"{session_name}.csv"
 
         self._file_initialized = False
-        # Track if steady state has been reached for reporting to user
-        self._ss_reached = {}
+        self.measurements = []
 
     def _initialize_csv(self, fieldnames=None):  # TODO: add fieldnames
         if not self._file_initialized:
@@ -112,7 +111,8 @@ class MonitoringSession:
         logger.info(f"\tStop on steady state: {stop_on_steady_state}")
         logger.info(f"\tShutdown at end: {shutdown_at_end}")
 
-        self.measurements = []
+        _ss_reached = {}
+
         t0 = time.monotonic()
         t = t0
         prev_t = t
@@ -141,8 +141,8 @@ class MonitoringSession:
                         is_card_ss = state_info["is_steady"]
                         all_steady &= is_card_ss
 
-                        if is_card_ss and card_id not in self._ss_reached:
-                            self._ss_reached[card_id] = (True, elapsed_time)
+                        if is_card_ss and card_id not in _ss_reached:
+                            _ss_reached[card_id] = (True, elapsed_time)
                             logger.info(
                                 f"Card {card_id} has reached steady state at {elapsed_time:.2f} seconds"
                             )
@@ -180,12 +180,12 @@ class MonitoringSession:
             )
             logger.info(f"Data saved to {self.file_path}")
 
-            if self._ss_reached:
+            if _ss_reached:
                 logger.info("Steady state reached for the following cards:")
                 for card_id, (
                     reached_steady,
                     elapsed_time,
-                ) in self._ss_reached.items():
+                ) in _ss_reached.items():
                     if reached_steady:
                         logger.info(
                             f"  Card {card_id}: Steady state reached after {elapsed_time:.2f} seconds"

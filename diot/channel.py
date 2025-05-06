@@ -16,17 +16,17 @@ class SensorChannel:
     # === LM75 properties ===
     @property
     def temperature(self) -> float:
-        """Get the current temperature reading from the sensor"""
+        """Get the current temperature reading from the sensor."""
         return self.temperature_sensor.temperature
 
     def get_hysteresis(self) -> float:
-        """Get the hysteresis temperature setting"""
+        """Get the hysteresis temperature setting."""
         self._hysteresis_cached = self.temperature_sensor.temperature_hysteresis
         return self._hysteresis_cached
 
     @property
     def hysteresis(self) -> float:
-        """Get the hysteresis temperature setting"""
+        """Get the hysteresis temperature setting."""
         if not hasattr(self, "_hysteresis_cached"):
             logger.debug("Hysteresis not cached, getting from sensor")
             self.get_hysteresis()
@@ -34,18 +34,18 @@ class SensorChannel:
 
     @hysteresis.setter
     def hysteresis(self, value: float) -> None:
-        """Set the hysteresis temperature"""
+        """Set the hysteresis temperature."""
         self._hysteresis_cached = value
         self.temperature_sensor.temperature_hysteresis = value
 
     def get_ot_shutdown(self) -> float:
-        """Get the over-temperature shutdown setting"""
+        """Get the over-temperature shutdown setting."""
         self._ot_shutdown_cached = self.temperature_sensor.temperature_shutdown
         return self._ot_shutdown_cached
 
     @property
     def ot_shutdown(self) -> float:
-        """Get the over-temperature shutdown setting"""
+        """Get the over-temperature shutdown setting."""
         if not hasattr(self, "_ot_shutdown_cached"):
             logger.debug("OT shutdown not cached, getting from sensor")
             self.get_ot_shutdown()
@@ -53,7 +53,7 @@ class SensorChannel:
 
     @ot_shutdown.setter
     def ot_shutdown(self, value: float) -> None:
-        """Set the over-temperature shutdown threshold"""
+        """Set the over-temperature shutdown threshold."""
         self._ot_shutdown_cached = value
         self.temperature_sensor.temperature_shutdown = value
 
@@ -63,7 +63,7 @@ class SensorChannel:
 
     @load_power.setter
     def load_power(self, power: float) -> None:
-        """Set the load power in Watts"""
+        """Set the load power in Watts."""
         pass
 
     def set_configuration(
@@ -72,7 +72,7 @@ class SensorChannel:
         ot_shutdown: float | None = None,
         power: float | None = None,
     ) -> None:
-        """Configure multiple parameters at once"""
+        """Configure multiple parameters at once."""
         if hysteresis is not None:
             self.hysteresis = hysteresis
         if ot_shutdown is not None:
@@ -81,7 +81,7 @@ class SensorChannel:
             self.load_power = power
 
     def report(self) -> dict[str, float]:
-        """Get a report of all channel parameters"""
+        """Get a report of all channel parameters."""
         return {
             "temperature": self.temperature,
             "hysteresis": self.hysteresis,
@@ -108,18 +108,18 @@ class Channel(SensorChannel):
     # === PCA9685 properties ===
     @property
     def frequency(self) -> float:
-        """Get the PWM frequency"""
+        """Get the PWM frequency."""
         return self.pwm_channel.frequency
 
     def get_load_power(self) -> float:
-        """Get the current load power in Watts"""
+        """Get the current load power in Watts."""
         self._load_power_cached = (
             self.pwm_channel.duty_cycle / 0xFFFF * self.max_power
         )  # FIXME: check if this is correct
 
     @property
     def load_power(self) -> float:
-        """Get the current load power in Watts"""
+        """Get the current load power in Watts."""
         if not hasattr(self, "_load_power_cached"):
             logger.debug("Load power not cached, getting from PWM channel")
             self.get_load_power()
@@ -127,7 +127,7 @@ class Channel(SensorChannel):
 
     @load_power.setter
     def load_power(self, power: float) -> None:
-        """Set the load power in Watts"""
+        """Set the load power in Watts."""
         if power > self.max_power:
             # raise ValueError(f"Power must be less than {self.max_power} W")
             power = self.max_power
