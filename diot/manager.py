@@ -1,6 +1,5 @@
 import logging
 import re
-from collections import defaultdict, deque
 
 from diot.cards import DIOTCard
 from diot.utils.ftdi_utils import find_serial_numbers
@@ -46,18 +45,6 @@ class DIOTCrateManager:
                 logger.warning("No DIOT cards (with DTxx serial numbers) found.")
                 return
             serial_numbers = sorted(discovered, key=lambda x: int(x[2:]))
-
-        self._steady_state_threshold = 1.0  # K per minute
-        self._min_history_duration = 120.0  # seconds
-
-        hist_depth = (
-            int(self._min_history_duration * (SECONDS_PER_BOARD / len(serial_numbers)))
-            + 1
-        )
-        logger.debug(f"History depth: {hist_depth}")
-        self._temp_history = defaultdict(
-            lambda: defaultdict(lambda: deque(maxlen=hist_depth))
-        )
 
         for serial in serial_numbers:
             self.add_card(serial, frequency, ot_shutdown, hysteresis)
@@ -226,10 +213,7 @@ class DIOTCrateManager:
         return is_steady, channels_steady_state, rates
 
     def report_cards(
-        self,
-        shutdown_card_on_ot: bool,
-        elapsed_time: float | None = None,
-        serials: list[str] | None = None,
+        self, shutdown_card_on_ot: bool = True, serials: list[str] | None = None
     ):
         # Don't move to numpy yet, as numpy arrays are less efficient for
         # appending data than lists. Even though we theoretically know the
@@ -239,54 +223,21 @@ class DIOTCrateManager:
         # to enumerate the cards and get the measurements, so we the number of
         # measurements is not known in advance.
         # See: https://github.com/numpy/numpy/issues/17090#issuecomment-674421168
-        measurements = []
-        steady_states = {}
+        reports = []
         if serials is None:
+            logger.debug("No serial numbers provided. Reporting all cards.")
             serials = self.cards.keys()
+            logger.debug(f"Serial numbers: {serials}")
         # it looks like getting report from a single card takes just above 1 seconds
         # after all it's 18 temp channels and 2 ADCs using I2C over USB
-        combined_results = [self.cards[serial].report() for serial in serials]
-        ot_per_card = []
+        for sn in serials:
+            r = self.cards[sn].report()
+            reports.append(r)
+            card_id = r["card_serial"]
+            card_ot_ev = any([ch["ot_ev"] for ch in r["channels"]])
 
-        for report in combined_results:
-            card_id = report["card_serial"]
-            card_ot_ev = any([ch["ot_ev"] for ch in report["channels"]])
-            ot_per_card.append(card_ot_ev)
-            voltage = report["voltage"]
-            current = report["current"]
-
-            # TODO: add a check if the card has been already shut down
-            # and skip the shutdown if it has
             if shutdown_card_on_ot and card_ot_ev:
+                logger.warning(f"Card {card_id} shutdown due to over-temperature!")
                 self.cards[card_id].shutdown_all_loads()
-                logger.warning(f"Card {card_id} shutdown due to over-temperature")
 
-            # Update temperature history for steady state detection
-            if elapsed_time is not None:
-                for ch_ix, ch_data in enumerate(report["channels"]):
-                    temp = ch_data["temperature"]
-                    self._temp_history[card_id][ch_ix].append((elapsed_time, temp))
-
-            # Check for steady state
-            is_card_ss, ss_per_ch, temp_rates = self._check_steady_state(
-                card_id, elapsed_time
-            )
-            steady_states[card_id] = {"is_steady": is_card_ss, "temp_rates": temp_rates}
-
-            for ch_ix, ch_data in enumerate(report["channels"]):
-                row = {
-                    "elapsed_time": elapsed_time,
-                    "card_serial": card_id,
-                    "channel": ch_ix,
-                    "temperature": ch_data["temperature"],
-                    "load_power": ch_data["load_power"],
-                    "ot_shutdown_t": ch_data["ot_shutdown"],
-                    "ot_ev": ch_data["ot_ev"],
-                    "voltage": voltage,
-                    "current": current,
-                    "steady_state": ss_per_ch.get(ch_ix, False),
-                    "temp_rate_per_min": temp_rates.get(ch_ix, None),
-                }
-                measurements.append(row)
-
-        return ot_per_card, measurements, steady_states
+        return reports
