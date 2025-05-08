@@ -1,5 +1,6 @@
 import argparse
 import logging
+from pathlib import Path
 
 from diot import DIOTCrateManager, MonitoringSession
 from diot.utils.ftdi_utils import find_serial_numbers
@@ -19,6 +20,12 @@ def setup_logging(debug: bool = False) -> logging.Logger:
     console_level = logging.DEBUG if debug else logging.INFO
     logger = logging.getLogger()
     logger.name = "monitor_app"
+    log_file = "monitor_app.log"
+
+    if Path(log_file).exists():
+        # if {log_file}.old exists, it will be replaced silently
+        Path(log_file).rename(f"{log_file}.old")
+
     logger.setLevel(logging.DEBUG)
 
     # TODO: add rotating file handler
@@ -105,22 +112,41 @@ def monitor_cards(crate_manager: DIOTCrateManager, args: argparse.Namespace):
     logger.info(f"Set cards: {serials_to_monitor} power to: {args.card_power} W")
 
     try:
-        monitor_session.monitor(
+        # args.wait_for_steady overrides args.no_shutdown and will shut down all loads
+        # after the first monitoring session and wait for steady state to be reached
+        elapsed_time = monitor_session.monitor(
             duration=duration,
             interval=args.interval,
-            shutdown_at_end=not args.no_shutdown,
+            shutdown_at_end=not args.no_shutdown or args.wait_for_steady,
             stop_on_steady_state=args.stop_on_steady,
             stop_on_ot=not args.continue_on_ot,
             save_every_iteration=True,
             serials_to_monitor=serials_to_monitor,
         )
+        logger.info("Monitoring session completed successfully.")
+
+        if args.wait_for_steady:
+            logger.info(
+                "Waiting for steady state to be reached after monitoring session..."
+            )
+            # TODO: maybe add a new session name for the second monitoring session?
+            # and add a new file to the results dir?
+            monitor_session.monitor(
+                duration=duration * 2,
+                interval=args.interval,
+                stop_on_steady_state=True,
+                stop_on_ot=not args.continue_on_ot,
+                save_every_iteration=True,
+                serials_to_monitor=serials_to_monitor,
+                start_time=elapsed_time,
+            )
     except KeyboardInterrupt:
         logger.info("Monitoring stopped by user")
         if not args.no_shutdown:
             crate_manager.shutdown_all_loads()
             logger.info("All loads shut down")
     except Exception as e:
-        logger.error(f"Error during monitoring: {e}")
+        logger.error(f"Error during monitoring: {e}", exc_info=True)
         if not args.no_shutdown:
             crate_manager.shutdown_all_loads()
             logger.info("All loads shut down due to error")
@@ -221,6 +247,15 @@ def get_parser():
         "--continue-on-ot",
         action="store_true",
         help="Stop monitoring on over-temperature event",
+    )
+    monitor_parser.add_argument(
+        "--wait-for-steady",
+        action="store_true",
+        help=(
+            "Wait for steady state AFTER the monitoring session - this overrides"
+            " --no-shutdown option and will shut down all loads after the first"
+            " monitoring session and wait for steady state to be reached"
+        ),
     )
 
     set_load_power_parser = subparsers.add_parser(
