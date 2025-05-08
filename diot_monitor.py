@@ -129,6 +129,10 @@ def monitor_cards(crate_manager: DIOTCrateManager, args: argparse.Namespace):
             logger.info(
                 "Waiting for steady state to be reached after monitoring session..."
             )
+            session_name = session_name + "_cooldown"
+            monitor_session = MonitoringSession(
+                crate_manager, save_dir=args.results_dir, session_name=session_name
+            )
             # TODO: maybe add a new session name for the second monitoring session?
             # and add a new file to the results dir?
             monitor_session.monitor(
