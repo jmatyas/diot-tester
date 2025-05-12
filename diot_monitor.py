@@ -16,11 +16,13 @@ DEFAULT_INTERVAL = 1.0
 DEFAULT_RESULTS_DIR = "results"
 
 
-def setup_logging(debug: bool = False) -> logging.Logger:
+def setup_logging(debug: bool = False, name: str | None = None) -> logging.Logger:
     console_level = logging.DEBUG if debug else logging.INFO
     logger = logging.getLogger()
-    logger.name = "monitor_app"
-    log_file = "monitor_app.log"
+    if name is None:
+        name = "monitor_app"
+    logger.name = name
+    log_file = f"{name}.log"
 
     if Path(log_file).exists():
         # if {log_file}.old exists, it will be replaced silently
@@ -29,7 +31,7 @@ def setup_logging(debug: bool = False) -> logging.Logger:
     logger.setLevel(logging.DEBUG)
 
     # TODO: add rotating file handler
-    fh = logging.FileHandler("monitor_app.log", mode="w")
+    fh = logging.FileHandler(log_file, mode="w")
     fh.setLevel(logging.DEBUG)
 
     ch = logging.StreamHandler()
