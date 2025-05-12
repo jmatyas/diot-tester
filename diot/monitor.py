@@ -349,6 +349,7 @@ class MonitoringSession:
             else len(self.crate_manager.cards)
         )
 
+        self.all_steady = False
         self.steady_registry = {}
         _state_info = {}
         ot_ev_detected = False
@@ -384,6 +385,7 @@ class MonitoringSession:
 
                     all_steady = all(_state_info.values())
                     if all_steady:
+                        self.all_steady = True
                         logger.info(
                             f"All cards have reached steady state after {elapsed_time:.2f} seconds."
                         )
