@@ -14,11 +14,9 @@ FAN_CHANNEL = 1
 OT_SHUTDOWN = 85.0  # degrees Celsius
 HYSTERESIS = 80.0  # degrees Celsius
 MAX_STEP_DURATION_MINUTES = 20.0
-DEFAULT_POWER_PER_CARD = 10.0  # W
+DEFAULT_POWER_PER_CARD = 20.0  # W
 
 RESULTS_DIR = "results"
-
-FANS_SETUP = "SCHROFF_default"
 
 
 @dataclass
@@ -75,9 +73,9 @@ def plot_step_data(file_path: str):
     """
     file_path = Path(file_path)
     base_name = file_path.stem
-    output_dir = file_path.parent / "plots"
+    output_dir = file_path.parent / "transients"
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / f"{base_name}_temperature.png"
+    output_path = output_dir / f"{base_name}.png"
     df = pd.read_csv(file_path)
     create_temperature_plots(df, output_path)
 
@@ -168,8 +166,11 @@ def scenario_step(
     return True, elapsed_time
 
 
-def setup_scenario_steps() -> list[StepParams]:
+def setup_scenario_steps(results_dir: str) -> list[StepParams]:
     """Setup the scenario steps.
+
+    Args:
+        results_dir (str): Directory to save the monitoring data
 
     Returns:
         list: A list of StepParams objects representing the steps
@@ -179,7 +180,7 @@ def setup_scenario_steps() -> list[StepParams]:
     step = StepParams(
         power=DEFAULT_POWER_PER_CARD,
         fan_voltage=12.0,
-        save_dir=f"{RESULTS_DIR}/{FANS_SETUP}",
+        save_dir=results_dir,
         step_no=len(steps),
         serials_to_set_power=None,
     )
@@ -189,9 +190,9 @@ def setup_scenario_steps() -> list[StepParams]:
     step = StepParams(
         power=DEFAULT_POWER_PER_CARD,
         fan_voltage=12.0,
-        save_dir=f"{RESULTS_DIR}/{FANS_SETUP}",
+        save_dir=results_dir,
         step_no=len(steps),
-        serials_to_set_power=[f"DT{i:02d}" for i in range(0, 8, 2)],
+        serials_to_set_power=[f"DT{i:02d}" for i in range(0, 9, 2)],
     )
     steps.append(step)
 
@@ -199,9 +200,9 @@ def setup_scenario_steps() -> list[StepParams]:
     step = StepParams(
         power=DEFAULT_POWER_PER_CARD,
         fan_voltage=12.0,
-        save_dir=f"{RESULTS_DIR}/{FANS_SETUP}",
+        save_dir=results_dir,
         step_no=len(steps),
-        serials_to_set_power=[f"DT{i:02d}" for i in range(1, 8, 2)],
+        serials_to_set_power=[f"DT{i:02d}" for i in range(1, 9, 2)],
     )
     steps.append(step)
 
@@ -210,7 +211,7 @@ def setup_scenario_steps() -> list[StepParams]:
     step = StepParams(
         power=0.0,
         fan_voltage=12.0,
-        save_dir=f"{RESULTS_DIR}/{FANS_SETUP}",
+        save_dir=results_dir,
         step_no=len(steps),
         serials_to_set_power=None,
     )
@@ -224,7 +225,7 @@ def setup_scenario_steps() -> list[StepParams]:
         step = StepParams(
             power=pwr,
             fan_voltage=0.0,
-            save_dir=f"{RESULTS_DIR}/{FANS_SETUP}",
+            save_dir=results_dir,
             step_no=len_steps + idx,
             serials_to_set_power=None,
         )
@@ -234,6 +235,21 @@ def setup_scenario_steps() -> list[StepParams]:
 
 
 def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run a scenario for the DIOT system.")
+    parser.add_argument(
+        "--results-dir",
+        type=str,
+        default=RESULTS_DIR,
+        help="Directory to save the monitoring data (default: 'results'). Fan setup will be appended to the directory.",
+    )
+    parser.add_argument(
+        "fans",
+        choices=["schroff", "80", "100"],
+        help="Fan setup to use for the analysis.",
+    )
+
     logger = setup_logging(name="scenario")
 
     # disable logging for pyvisa and matplotlib
@@ -241,10 +257,21 @@ def main():
     pyvisa_logger.setLevel(logging.WARNING)
     matplotlib_logger = logging.getLogger("matplotlib")
     matplotlib_logger.setLevel(logging.WARNING)
+    pil_logger = logging.getLogger("PIL")
+    pil_logger.setLevel(logging.WARNING)
 
     logger.debug("Starting main function")
 
-    scenario_steps = setup_scenario_steps()
+    args = parser.parse_args()
+
+    fan_str = {
+        "schroff": "SCHROFF",
+        "80": "CUSTOM_80",
+        "100": "CUSTOM_100",
+    }[args.fans]
+
+    results_dir = f"{args.results_dir}/{fan_str}"
+    scenario_steps = setup_scenario_steps(results_dir)
 
     availible_cards = list_available_cards()
     if not availible_cards:
