@@ -5,8 +5,14 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import Rbf
 
 # Constants
-RESULTS_DIR = "results"
-HEATMAPS_DIR = "heatmaps"
+FANS_SETUP = "SCHROFF"
+
+RESULTS_DIR = f"results/{FANS_SETUP}"
+HEATMAPS_DIR = f"{RESULTS_DIR}/heatmaps"
+
+COLORBAR_MIN_TEMP = 20.0
+COLORBAR_MAX_TEMP = 80.0
+
 PCB_WIDTH = 220  # mm
 PCB_HEIGHT = 100  # mm
 
@@ -111,8 +117,8 @@ def create_single_heatmap(
         origin="lower",
         cmap="coolwarm",
         aspect="equal",
-        vmin=global_min_temp,
-        vmax=global_max_temp,
+        vmin=COLORBAR_MIN_TEMP,
+        vmax=COLORBAR_MAX_TEMP,
     )
 
     # Add measurement points
