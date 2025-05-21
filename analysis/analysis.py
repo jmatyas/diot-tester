@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -23,14 +23,17 @@ def setup_axis(ax: plt.Axes) -> None:
     ax.xaxis.set_tick_params(labelsize=10)
 
 
-def create_temperature_plots(df: pd.DataFrame, output_path: str) -> None:
+def create_temperature_plots(df: pd.DataFrame, output_path: Path) -> None:
     """Create a grid of temperature vs time plots.
 
     Args:
         df: DataFrame containing temperature measurements
         output_path: Path where the plot will be saved
     """
-    sns.set_theme(style="ticks", palette="colorblind")
+    sns.set_theme(
+        style="darkgrid",
+        palette="colorblind",
+    )
 
     card_serials = df["card_serial"].unique()
     timestamps = df["elapsed_time"].unique()
@@ -94,39 +97,90 @@ def create_temperature_plots(df: pd.DataFrame, output_path: str) -> None:
 
         setup_axis(ax)
 
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     g.savefig(output_path, bbox_inches="tight")
     plt.close()
 
 
 def main() -> None:
     """Main function to process data and generate plots."""
-    DIRECTORY = "results"
-    ROOT_DIR = os.getcwd()
-    print(f"Root directory: {ROOT_DIR}")
+    import argparse
 
-    files = [f for f in os.listdir(DIRECTORY) if f.endswith(".csv")]
+    parser = argparse.ArgumentParser(
+        description="Process temperature data and generate transient plots."
+    )
+
+    parser.add_argument(
+        "--data-dir",
+        type=str,
+        default="results",
+        help="Directory containing the CSV files to process (default: 'results'). Fan setup will be appended to the directory.",
+    )
+
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default="results",
+        help="Directory to put the transient images (default: 'results'). Fan setup will be appended to the directory.",
+    )
+    parser.add_argument(
+        "fans",
+        choices=["schroff", "80", "100"],
+        help="Fan setup to use for the analysis.",
+    )
+    parser.add_argument(
+        "--overwrite",
+        "-f",
+        action="store_true",
+        help="Overwrite existing output files.",
+    )
+
+    args = parser.parse_args()
+
+    fan_str = {
+        "schroff": "SCHROFF",
+        "80": "CUSTOM_80",
+        "100": "CUSTOM_100",
+    }[args.fans]
+
+    src_dir = Path.cwd() / args.data_dir / fan_str
+    dest_dir = Path.cwd() / args.output_dir / fan_str / "transients"
+
+    if not src_dir.exists():
+        print(f"Source directory {src_dir} does not exist.")
+        return
+
+    print(f"Looking for files in '{src_dir}'...")
+
+    files = sorted([f for f in src_dir.iterdir() if f.suffix == ".csv"])
+
     if files:
-        print("Available files:")
+        print(f"Found {len(files)} files:")
         for i, file in enumerate(files):
-            print(f"{i}: {file}")
+            print(f"\t{i}: {file.name}")
+        print()
     else:
         print("No CSV files found in the directory.")
         print("\tusing example file...")
         files = ["example_measurement.csv"]
 
+    print(f"Output will be saved to '{dest_dir}'.")
+
     # files = files[-1:]  # Process only the last file for demonstration
-    for fname in files:
-        print(f"Processing file: {fname}")
-        path = os.path.join(DIRECTORY, fname)
-        base_name = os.path.splitext(fname)[0]
+    for fpath in files:
+        print(f"Processing file: '{fpath.name}'")
+        base_name = fpath.stem
 
-        df = pd.read_csv(path)
+        df = pd.read_csv(fpath)
 
-        output_path = f"{ROOT_DIR}/plots/{base_name}_temperature.png"
-        create_temperature_plots(df, output_path)
-        print(f"Temperature plots generated: {output_path}")
+        out_path = dest_dir / f"{base_name}.png"
+        if out_path.exists() and not args.overwrite:
+            print(
+                f"Output file '{out_path.name}' already exists. Use --overwrite to overwrite."
+            )
+            continue
+
+        create_temperature_plots(df, out_path)
 
 
 if __name__ == "__main__":
