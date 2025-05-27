@@ -4,7 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from analysis.analysis import create_temperature_plots
+from analysis.transients import create_temperature_plots
+from analysis.heatmaps import generate_heatmap_grid
 from diot import DIOTCrateManager, MonitoringSession
 from diot_monitor import list_available_cards, setup_logging
 from rs_power_supply import MAX_I, MAX_V, MIN_I, MIN_V, RSPowerSupply
@@ -73,11 +74,17 @@ def plot_step_data(file_path: str):
     """
     file_path = Path(file_path)
     base_name = file_path.stem
-    output_dir = file_path.parent / "transients"
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / f"{base_name}.png"
+    output_dir = file_path.parent
+
+    output_transients = output_dir / "transients"
+    output_heatmaps = output_dir / "heatmaps"
     df = pd.read_csv(file_path)
-    create_temperature_plots(df, output_path)
+
+    output_transients.mkdir(parents=True, exist_ok=True)
+    output_heatmaps.mkdir(parents=True, exist_ok=True)
+
+    create_temperature_plots(df, output_transients / f"{base_name}.png")
+    generate_heatmap_grid(df, output_heatmaps / f"{base_name}.png")
 
 
 def scenario_step(

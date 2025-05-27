@@ -23,6 +23,40 @@ def setup_axis(ax: plt.Axes) -> None:
     ax.xaxis.set_tick_params(labelsize=10)
 
 
+def summarise(df: pd.DataFrame):
+    # get only the last measurement; silently assume that the last measurement
+    # should be the steady state; but this is determined by the actual measurement
+    # situation (scenario step)
+    df_last = df[df["elapsed_time"] == df["elapsed_time"].max()]
+
+    # use for summary only the first 17 - other two are located near the backplane
+    # and they are significantly cooler than the others (empirically determined)
+    grouped = df_last[df_last["channel"] <= 16].groupby("card_serial")
+    cardwise_Tmax, cardwise_Tmin = (
+        grouped["temperature"].max(),
+        grouped["temperature"].min(),
+    )
+    overall_Tmax, overall_Tmax_card = cardwise_Tmax.max(), cardwise_Tmax.idxmax()
+    overall_Tmin, overall_Tmin_card = cardwise_Tmin.min(), cardwise_Tmin.idxmin()
+
+    # DT - delta temperature
+    cardwise_DT = cardwise_Tmax - cardwise_Tmin
+
+    highest_DT, highest_DT_card = cardwise_DT.max(), cardwise_DT.idxmax()
+
+    highest_DT_card_Tmin = cardwise_Tmin[highest_DT_card]
+    highest_DT_card_Tmax = cardwise_Tmax[highest_DT_card]
+
+    summary = (
+        f"Max ΔT = {highest_DT:.1f} °C (Tmax = {highest_DT_card_Tmax:.1f} °C, "
+        f"Tmin = {highest_DT_card_Tmin:.1f} °C) on card {highest_DT_card}    |    "
+        f"Overall Max T = {overall_Tmax:.1f} °C on card {overall_Tmax_card}    |    "
+        f"Overall Min T = {overall_Tmin:.1f} °C on card {overall_Tmin_card}"
+    )
+
+    return summary
+
+
 def create_temperature_plots(df: pd.DataFrame, output_path: Path) -> None:
     """Create a grid of temperature vs time plots.
 
@@ -30,10 +64,9 @@ def create_temperature_plots(df: pd.DataFrame, output_path: Path) -> None:
         df: DataFrame containing temperature measurements
         output_path: Path where the plot will be saved
     """
-    sns.set_theme(
-        style="darkgrid",
-        palette="colorblind",
-    )
+    sns.set_theme(style="darkgrid", palette="colorblind")
+
+    summary = summarise(df)
 
     card_serials = df["card_serial"].unique()
     timestamps = df["elapsed_time"].unique()
@@ -67,6 +100,7 @@ def create_temperature_plots(df: pd.DataFrame, output_path: Path) -> None:
     g.set_axis_labels("Time [min]", "Temperature [°C]")
     g.set_titles(col_template="Card: {col_name}")
     g.set(ylim=(20, 85))
+    g.figure.text(0.7, 0.03, summary, ha="center", fontsize=10)
 
     axes = g.axes.flatten()
     for ax, card_id in zip(axes, card_serials, strict=True):
@@ -98,8 +132,10 @@ def create_temperature_plots(df: pd.DataFrame, output_path: Path) -> None:
         setup_axis(ax)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
+
     g.savefig(output_path, bbox_inches="tight")
     plt.close()
+    print(f"Transient plots generated for '{output_path.name}'")
 
 
 def main() -> None:
