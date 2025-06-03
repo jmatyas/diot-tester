@@ -280,7 +280,7 @@ def main() -> None:
     )
     parser.add_argument(
         "fans",
-        choices=["schroff", "80", "100"],
+        choices=["schroff", "80", "100", "backplane", "backplane_guided"],
         help="Fan setup to use for the analysis.",
     )
     parser.add_argument(
@@ -296,6 +296,8 @@ def main() -> None:
         "schroff": "SCHROFF",
         "80": "CUSTOM_80",
         "100": "CUSTOM_100",
+        "backplane": "BACKPLANE",
+        "backplane_guided": "BACKPLANE_GUIDED",
     }[args.fans]
 
     src_dir = Path.cwd() / args.data_dir / fan_str

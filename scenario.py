@@ -193,50 +193,72 @@ def setup_scenario_steps(results_dir: str) -> list[StepParams]:
     )
     steps.append(step)
 
-    # Every second board will be set to the same power
-    step = StepParams(
-        power=DEFAULT_POWER_PER_CARD,
-        fan_voltage=12.0,
-        save_dir=results_dir,
-        step_no=len(steps),
-        serials_to_set_power=[f"DT{i:02d}" for i in range(0, 9, 2)],
-    )
-    steps.append(step)
+    # # Every second board will be set to the same power
+    # step = StepParams(
+    #     power=DEFAULT_POWER_PER_CARD,
+    #     fan_voltage=12.0,
+    #     save_dir=results_dir,
+    #     step_no=len(steps),
+    #     serials_to_set_power=[f"DT{i:02d}" for i in range(0, 9, 2)],
+    # )
+    # steps.append(step)
 
-    # Every second bard but starting from the second one
-    step = StepParams(
-        power=DEFAULT_POWER_PER_CARD,
-        fan_voltage=12.0,
-        save_dir=results_dir,
-        step_no=len(steps),
-        serials_to_set_power=[f"DT{i:02d}" for i in range(1, 9, 2)],
-    )
-    steps.append(step)
+    # # Every second bard but starting from the second one
+    # step = StepParams(
+    #     power=DEFAULT_POWER_PER_CARD,
+    #     fan_voltage=12.0,
+    #     save_dir=results_dir,
+    #     step_no=len(steps),
+    #     serials_to_set_power=[f"DT{i:02d}" for i in range(1, 9, 2)],
+    # )
+    # steps.append(step)
 
-    # Disable all loads and wait for the system to cool down
-    # before the next step
-    step = StepParams(
-        power=0.0,
-        fan_voltage=12.0,
-        save_dir=results_dir,
-        step_no=len(steps),
-        serials_to_set_power=None,
-    )
-    steps.append(step)
+    # # Disable all loads and wait for the system to cool down
+    # # before the next step
+    # step = StepParams(
+    #     power=0.0,
+    #     fan_voltage=12.0,
+    #     save_dir=results_dir,
+    #     step_no=len(steps),
+    #     serials_to_set_power=None,
+    # )
+    # steps.append(step)
 
-    # Next steps - gradually increase the power with disabled fans and wait for OT
-    # to be reached
-    fan_failure_powers = [5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0]
-    len_steps = len(steps)
-    for idx, pwr in enumerate(fan_failure_powers):
-        step = StepParams(
-            power=pwr,
-            fan_voltage=0.0,
-            save_dir=results_dir,
-            step_no=len_steps + idx,
-            serials_to_set_power=None,
-        )
-        steps.append(step)
+    # # Next steps - gradually increase the power with disabled fans and wait for OT
+    # # to be reached
+    # fan_failure_powers = [5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0]
+    # len_steps = len(steps)
+    # for idx, pwr in enumerate(fan_failure_powers):
+    #     step = StepParams(
+    #         power=pwr,
+    #         fan_voltage=0.0,
+    #         save_dir=results_dir,
+    #         step_no=len_steps + idx,
+    #         serials_to_set_power=None,
+    #     )
+    #     steps.append(step)
+    
+    # # Intermediate step to cool down the system
+    # step = StepParams(
+    #     power=0.0,
+    #     fan_voltage=12.0,
+    #     save_dir=results_dir,
+    #     step_no=len(steps),
+    #     serials_to_set_power=None,
+    # )
+    # steps.append(step)
+
+    # fan_failure_voltages = [12, 11.5, 11, 10.5, 10, 9.5, 9, 8.5, 8, 7.5, 7] 
+    # len_steps = len(steps)
+    # for idx, voltage in enumerate(fan_failure_voltages):
+    #     step = StepParams(
+    #         power=DEFAULT_POWER_PER_CARD,
+    #         fan_voltage=voltage,
+    #         save_dir=results_dir,
+    #         step_no=len_steps + idx,
+    #         serials_to_set_power=None,
+    #     )
+    #     steps.append(step)
 
     return steps
 
@@ -253,7 +275,7 @@ def main():
     )
     parser.add_argument(
         "fans",
-        choices=["schroff", "80", "100"],
+        choices=["schroff", "80", "100", "backplane", "backplane_guided"],
         help="Fan setup to use for the analysis.",
     )
 
@@ -275,6 +297,8 @@ def main():
         "schroff": "SCHROFF",
         "80": "CUSTOM_80",
         "100": "CUSTOM_100",
+        "backplane": "BACKPLANE",
+        "backplane_guided": "BACKPLANE_GUIDED",
     }[args.fans]
 
     results_dir = f"{args.results_dir}/{fan_str}"
@@ -299,7 +323,8 @@ def main():
             )
             if not is_steady:
                 logger.warning(f"Step {step.step_no} did not reach steady state.")
-                break
+                logger.warning("=== CONTINUING TO THE NEXT STEP REGARDLESS ===")
+                # break
             logger.info(f"Step {step.step_no} completed successfully.")
             logger.info(f"Elapsed time: {elapsed_time:.2f} seconds")
     except Exception as e:
