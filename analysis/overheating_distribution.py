@@ -1,4 +1,5 @@
 from pathlib import Path
+
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -20,9 +21,12 @@ def extract_slot_temperatures(df):
         if idx >= 9:
             break
 
-        df_card = df_steady[(df_steady["card_serial"] == card)
-                            & (df_steady["channel"] <= 18)]
-        df_card_relevant = df_card[df_card["channel"] <= 16] #exclude backplane thermometers
+        df_card = df_steady[
+            (df_steady["card_serial"] == card) & (df_steady["channel"] <= 18)
+        ]
+        df_card_relevant = df_card[
+            df_card["channel"] <= 16
+        ]  # exclude backplane thermometers
         min_temp = df_card_relevant["temperature"].min()
         max_temp = df_card_relevant["temperature"].max()
         delta_t = max_temp - min_temp
@@ -35,7 +39,7 @@ def extract_slot_temperatures(df):
     return slotnumber, maxtemp_on_slot, delta_t_on_slot, power
 
 
-def plot_temperature_metrics(filelist, labels=None):
+def plot_temperature_metrics(filelist, labels=None, output_path: Path = None):
     """
     Plot two charts (max temperature and ΔT per slot) for multiple CSV files.
     Each line corresponds to one file.
@@ -45,44 +49,107 @@ def plot_temperature_metrics(filelist, labels=None):
 
     plt.figure(figsize=(10, 5))
     for fpath, label in zip(filelist, labels):
-        print(f"Processing file: {fpath}")
+        print(f"Processing file: {fpath} with label: {label}")
         df = pd.read_csv(fpath)
         slotnumber, maxtemp_on_slot, delta_t_on_slot, power = extract_slot_temperatures(
-            df)
-        plt.plot(slotnumber, maxtemp_on_slot, marker='o',
-                 label=f'{label} ({power:.1f}W)')
+            df
+        )
+        plt.plot(
+            slotnumber, maxtemp_on_slot, marker="o", label=f"{label} ({power:.1f}W)"
+        )
     plt.xlabel("DIOT slot number")
     plt.ylabel("Max temperature [°C]")
+    name = "max_temp_per_slot.png"
+    out_file = name if output_path is None else output_path / name
     plt.title("Max temperature per slot")
     plt.grid(True)
     plt.legend()
-    plt.savefig("Maxtemperatures per slot.png")
+    plt.savefig(out_file)
     plt.close()
 
     plt.figure(figsize=(10, 5))
     for fpath, label in zip(filelist, labels):
         df = pd.read_csv(fpath)
         slotnumber, maxtemp_on_slot, delta_t_on_slot, power = extract_slot_temperatures(
-            df)
-        plt.plot(slotnumber, delta_t_on_slot, marker='o',
-                 label=f'{label} ({power:.1f}W)')
+            df
+        )
+        plt.plot(
+            slotnumber, delta_t_on_slot, marker="o", label=f"{label} ({power:.1f}W)"
+        )
     plt.xlabel("DIOT slot number")
     plt.ylabel("ΔT [°C]")
     plt.title("ΔT per slot")
     plt.grid(True)
     plt.legend()
-    plt.savefig("DeltaT per slot.png")
+    name = "deltaT_per_slot.png"
+    out_file = name if output_path is None else output_path / name
+
+    plt.savefig(out_file)
     plt.close()
 
 
-# ======= Main code =======
+def main():
+    import argparse
 
-fpath1 = r'C:\Users\Konrad Norowski\Desktop\DIOT testing\020625\results\SCHROFF\step_0_20W0_20250521_151216.csv'
-fpath2 = r'C:\Users\Konrad Norowski\Desktop\DIOT testing\020625\results\CUSTOM_80\step_0_20W0_20250520_181621.csv'
-fpath3 = r'C:\Users\Konrad Norowski\Desktop\DIOT testing\020625\results\CUSTOM_100\step_0_20W0_20250527_160236.csv'
+    parser = argparse.ArgumentParser(
+        description="Distribution of tempearture and temperature differences across setups"
+    )
+
+    parser.add_argument(
+        "--data-dir",
+        type=str,
+        default="results",
+        help="Directory containing the CSV files to process (default: 'results').",
+    )
+
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default="results",
+        help="Directory to put the images (default: 'results').",
+    )
+
+    parser.add_argument(
+        "--overwrite",
+        "-f",
+        action="store_true",
+        help="Overwrite existing output files.",
+    )
+
+    args = parser.parse_args()
+
+    src_dir = Path.cwd() / args.data_dir
+    dest_dir = Path.cwd() / args.output_dir
+
+    setups = sorted([d for d in src_dir.iterdir() if d.is_dir()])
+
+    src_file_prefix = "step_0_20W0"
+    if not setups:
+        print("No setups found.")
+        return
+
+    labels = [l.name for l in setups]
+
+    print("Following setups were found:")
+    for i, label in enumerate(labels):
+        print(f"\t{i}: {label}")
+    print()
+
+    found_src_files = []
+    for d in setups:
+        found_src_files.append(
+            sorted(
+                [
+                    f
+                    for f in src_dir.joinpath(d).iterdir()
+                    if f.name.startswith(src_file_prefix)
+                ]
+            )[0]
+        )
+
+    filelist = found_src_files
+    plot_temperature_metrics(filelist, labels, dest_dir)
 
 
-filelist = [fpath1, fpath2, fpath3]
-labels = ["SCHROFF", "CUSTOM 80", "CUSTOM 100"]  # for legend
-
-plot_temperature_metrics(filelist, labels)
+if __name__ == "__main__":
+    main()
