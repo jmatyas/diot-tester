@@ -12,10 +12,10 @@ from rs_power_supply import MAX_I, MAX_V, MIN_I, MIN_V, RSPowerSupply
 
 PSU_IP = "10.42.0.245"
 FAN_CHANNEL = 1
-OT_SHUTDOWN = 85.0  # degrees Celsius
-HYSTERESIS = 80.0  # degrees Celsius
+OT_SHUTDOWN = 90.0  # degrees Celsius
+HYSTERESIS = 85.0  # degrees Celsius
 MAX_STEP_DURATION_MINUTES = 20.0
-DEFAULT_POWER_PER_CARD = 20.0  # W
+DEFAULT_POWER_PER_CARD = 10.0  # W
 
 RESULTS_DIR = "results"
 
@@ -37,6 +37,7 @@ class StepParams:
     save_dir: str
     step_no: int
     serials_to_set_power: list[str] | None = None
+    step_name: str = ""
 
 
 def set_fan_voltage(voltage: float, current: float, enable: bool = True):
@@ -106,6 +107,7 @@ def scenario_step(
     power = step_params.power
     save_dir = step_params.save_dir
     step_no = step_params.step_no
+    step_name = step_params.step_name
     fan_voltage = step_params.fan_voltage
     serials_to_set_power = step_params.serials_to_set_power
     if serials_to_set_power is None:
@@ -113,10 +115,15 @@ def scenario_step(
 
     available_cards = list(crate_manager.cards.keys())
     power_str = str(power).replace(".", "W")
+    name_str = (
+        step_name.replace(".", "V")
+        if step_name.startswith("fan_voltage_")
+        else step_name
+    )
     monitor_session = MonitoringSession(
         crate_manager=crate_manager,
         save_dir=save_dir,
-        session_name=f"step_{step_no}_{power_str}",
+        session_name=f"step_{step_no}_{power_str}_{name_str}",
     )
 
     logger.info("Step parameters:")
@@ -190,76 +197,83 @@ def setup_scenario_steps(results_dir: str) -> list[StepParams]:
         save_dir=results_dir,
         step_no=len(steps),
         serials_to_set_power=None,
+        step_name="basic",
     )
     steps.append(step)
 
-    # # Every second board will be set to the same power
-    # step = StepParams(
-    #     power=DEFAULT_POWER_PER_CARD,
-    #     fan_voltage=12.0,
-    #     save_dir=results_dir,
-    #     step_no=len(steps),
-    #     serials_to_set_power=[f"DT{i:02d}" for i in range(0, 9, 2)],
-    # )
-    # steps.append(step)
+    # Every second board will be set to the same power
+    step = StepParams(
+        power=DEFAULT_POWER_PER_CARD,
+        fan_voltage=12.0,
+        save_dir=results_dir,
+        step_no=len(steps),
+        serials_to_set_power=[f"DT{i:02d}" for i in range(0, 9, 2)],
+        step_name="even",
+    )
+    steps.append(step)
 
-    # # Every second bard but starting from the second one
-    # step = StepParams(
-    #     power=DEFAULT_POWER_PER_CARD,
-    #     fan_voltage=12.0,
-    #     save_dir=results_dir,
-    #     step_no=len(steps),
-    #     serials_to_set_power=[f"DT{i:02d}" for i in range(1, 9, 2)],
-    # )
-    # steps.append(step)
+    # Every second bard but starting from the second one
+    step = StepParams(
+        power=DEFAULT_POWER_PER_CARD,
+        fan_voltage=12.0,
+        save_dir=results_dir,
+        step_no=len(steps),
+        serials_to_set_power=[f"DT{i:02d}" for i in range(1, 9, 2)],
+        step_name="odd",
+    )
+    steps.append(step)
 
-    # # Disable all loads and wait for the system to cool down
-    # # before the next step
-    # step = StepParams(
-    #     power=0.0,
-    #     fan_voltage=12.0,
-    #     save_dir=results_dir,
-    #     step_no=len(steps),
-    #     serials_to_set_power=None,
-    # )
-    # steps.append(step)
+    # Disable all loads and wait for the system to cool down
+    # before the next step
+    step = StepParams(
+        power=0.0,
+        fan_voltage=12.0,
+        save_dir=results_dir,
+        step_no=len(steps),
+        serials_to_set_power=None,
+        step_name="cool_down_after_even_odd",
+    )
+    steps.append(step)
 
-    # # Next steps - gradually increase the power with disabled fans and wait for OT
-    # # to be reached
-    # fan_failure_powers = [5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0]
-    # len_steps = len(steps)
-    # for idx, pwr in enumerate(fan_failure_powers):
-    #     step = StepParams(
-    #         power=pwr,
-    #         fan_voltage=0.0,
-    #         save_dir=results_dir,
-    #         step_no=len_steps + idx,
-    #         serials_to_set_power=None,
-    #     )
-    #     steps.append(step)
-    
-    # # Intermediate step to cool down the system
-    # step = StepParams(
-    #     power=0.0,
-    #     fan_voltage=12.0,
-    #     save_dir=results_dir,
-    #     step_no=len(steps),
-    #     serials_to_set_power=None,
-    # )
-    # steps.append(step)
+    # Next steps - gradually increase the power with disabled fans and wait for OT
+    # to be reached
+    fan_failure_powers = [5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0]
+    len_steps = len(steps)
+    for idx, pwr in enumerate(fan_failure_powers):
+        step = StepParams(
+            power=pwr,
+            fan_voltage=0.0,
+            save_dir=results_dir,
+            step_no=len_steps + idx,
+            serials_to_set_power=None,
+            step_name="fan_failure",
+        )
+        steps.append(step)
 
-    # fan_failure_voltages = [12, 11.5, 11, 10.5, 10, 9.5, 9, 8.5, 8, 7.5, 7] 
-    # len_steps = len(steps)
-    # for idx, voltage in enumerate(fan_failure_voltages):
-    #     step = StepParams(
-    #         power=DEFAULT_POWER_PER_CARD,
-    #         fan_voltage=voltage,
-    #         save_dir=results_dir,
-    #         step_no=len_steps + idx,
-    #         serials_to_set_power=None,
-    #     )
-    #     steps.append(step)
+    # Intermediate step to cool down the system
+    step = StepParams(
+        power=0.0,
+        fan_voltage=12.0,
+        save_dir=results_dir,
+        step_no=len(steps),
+        serials_to_set_power=None,
+        step_name="cool_down_after_fan_failure",
+    )
+    steps.append(step)
 
+    fan_failure_voltages = [12.0, 11.5, 11.0, 10.5, 10.0, 9.5, 9.0, 8.5, 8.0, 7.5, 7.0]
+
+    len_steps = len(steps)
+    for idx, voltage in enumerate(fan_failure_voltages):
+        step = StepParams(
+            power=DEFAULT_POWER_PER_CARD,
+            fan_voltage=voltage,
+            save_dir=results_dir,
+            step_no=len_steps + idx,
+            serials_to_set_power=None,
+            step_name=f"fan_voltage_{voltage:.1f}",
+        )
+        steps.append(step)
     return steps
 
 
@@ -274,9 +288,27 @@ def main():
         help="Directory to save the monitoring data (default: 'results'). Fan setup will be appended to the directory.",
     )
     parser.add_argument(
+        "--list-steps",
+        action="store_true",
+        help="List all available scenario steps and exit.",
+    )
+    parser.add_argument(
         "fans",
-        choices=["schroff", "80", "100", "backplane", "backplane_guided"],
+        choices=[
+            "schroff",
+            "80",
+            "100",
+            "backplane",
+            "backplane_guided",
+            "backplane_guided_front_coverless",
+        ],
         help="Fan setup to use for the analysis.",
+    )
+    parser.add_argument(
+        "--start-step",
+        type=int,
+        default=0,
+        help="Step number to start from (default: 0).",
     )
 
     logger = setup_logging(name="scenario")
@@ -299,10 +331,28 @@ def main():
         "100": "CUSTOM_100",
         "backplane": "BACKPLANE",
         "backplane_guided": "BACKPLANE_GUIDED",
+        "backplane_guided_front_coverless": "BACKPLANE_GUIDED_FRONT_COVERLESS",
     }[args.fans]
 
     results_dir = f"{args.results_dir}/{fan_str}"
     scenario_steps = setup_scenario_steps(results_dir)
+
+    if args.list_steps:
+        print("Available scenario steps:")
+        print(f"Total steps: {len(scenario_steps)}")
+        title = "\t\t".join(["Step_no", "Step Name", "Power (W)", "Fan Voltage (V)"])
+        print(title)
+        for step in scenario_steps:
+            print(
+                f"{step.step_no:<4}\t{step.step_name:<30}\t{step.power:>6.1f}\t\t{step.fan_voltage:>6.1f}"
+            )
+        return
+
+    if args.start_step < 0 or args.start_step >= len(scenario_steps):
+        logger.error(
+            f"Invalid start step: {args.start_step}. Must be between 0 and {len(scenario_steps) - 1}."
+        )
+        return
 
     availible_cards = list_available_cards()
     if not availible_cards:
@@ -316,15 +366,15 @@ def main():
             hysteresis=HYSTERESIS,
         )
 
-        for step in scenario_steps:
+        for step in scenario_steps[args.start_step :]:
             is_steady, elapsed_time = scenario_step(
                 crate_manager=crate_manager,
                 step_params=step,
             )
             if not is_steady:
                 logger.warning(f"Step {step.step_no} did not reach steady state.")
-                logger.warning("=== CONTINUING TO THE NEXT STEP REGARDLESS ===")
-                # break
+                # logger.warning("=== CONTINUING TO THE NEXT STEP REGARDLESS ===")
+                break
             logger.info(f"Step {step.step_no} completed successfully.")
             logger.info(f"Elapsed time: {elapsed_time:.2f} seconds")
     except Exception as e:
