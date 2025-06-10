@@ -100,7 +100,7 @@ class DIOTCrateManager:
             #     f"Power {power} W exceeds maximum load power {card.max_load_power} W"
             # )
             power = card.max_load_power
-        power_per_channel = power / len(card.load_channels)
+        power_per_channel = power / len(card.load_channels[:-1])
         card.set_all_load_power(power_per_channel)
 
     def set_cards_load_power(self, serial: list[str] | str, power: list[float] | float):

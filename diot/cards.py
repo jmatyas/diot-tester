@@ -16,7 +16,7 @@ from diot.utils.i2c_utils import make_i2c_graph
 # but on DIOT cards we use "93C46" (0x46)
 FTDI_EEPROM_CHIP_TYPE = 0x46
 
-SOFT_OT_THRESHOLD = 5  # degrees Celsius
+SOFT_OT_THRESHOLD = 10  # degrees Celsius
 
 
 class DIOTCard(I2C):
@@ -44,7 +44,6 @@ class DIOTCard(I2C):
             serial: FTDI serial number in format "DTxx" where xx is 0-8
 
         """
-
         # TODO: check if providing serial number overrides url and what happens
         # when no serial number is provided and multiple FTDI devices are
         # connected to the system
