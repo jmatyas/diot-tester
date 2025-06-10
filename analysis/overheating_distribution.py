@@ -5,8 +5,8 @@ import pandas as pd
 
 
 def extract_slot_temperatures(df):
-    """
-    Extract max temperature and delta T per slot (up to 9 slots).
+    """Extract max temperature and delta T per slot (up to 9 slots).
+
     Returns lists: slotnumber, maxtemp_on_slot, delta_t_on_slot, power
     """
     last_time = df["elapsed_time"].max()
@@ -39,16 +39,16 @@ def extract_slot_temperatures(df):
     return slotnumber, maxtemp_on_slot, delta_t_on_slot, power
 
 
-def plot_temperature_metrics(filelist, labels=None, output_path: Path = None):
-    """
-    Plot two charts (max temperature and ΔT per slot) for multiple CSV files.
+def plot_temperature_metrics(filelist, labels=None, output_path: Path | None = None):
+    """Plot two charts (max temperature and ΔT per slot) for multiple CSV files.
+
     Each line corresponds to one file.
     """
     if labels is None:
         labels = [Path(f).stem for f in filelist]
 
     plt.figure(figsize=(10, 5))
-    for fpath, label in zip(filelist, labels):
+    for fpath, label in zip(filelist, labels, strict=True):
         print(f"Processing file: {fpath} with label: {label}")
         df = pd.read_csv(fpath)
         slotnumber, maxtemp_on_slot, delta_t_on_slot, power = extract_slot_temperatures(
@@ -68,7 +68,7 @@ def plot_temperature_metrics(filelist, labels=None, output_path: Path = None):
     plt.close()
 
     plt.figure(figsize=(10, 5))
-    for fpath, label in zip(filelist, labels):
+    for fpath, label in zip(filelist, labels, strict=True):
         df = pd.read_csv(fpath)
         slotnumber, maxtemp_on_slot, delta_t_on_slot, power = extract_slot_temperatures(
             df
@@ -128,24 +128,30 @@ def main():
         print("No setups found.")
         return
 
-    labels = [l.name for l in setups]
+    labels = []
+
+    found_src_files = []
+    for d in setups:
+        found = sorted(
+            [
+                f
+                for f in src_dir.joinpath(d).iterdir()
+                if f.name.startswith(src_file_prefix)
+            ]
+        )
+        if not found:
+            print(f"No files found in {d}. Skipping.")
+            continue
+        labels.append(d.name)
+
+        # Take the last file in the directory, probably the newest, but this
+        # needs to be checked.
+        found_src_files.append(found[-1])
 
     print("Following setups were found:")
     for i, label in enumerate(labels):
         print(f"\t{i}: {label}")
     print()
-
-    found_src_files = []
-    for d in setups:
-        found_src_files.append(
-            sorted(
-                [
-                    f
-                    for f in src_dir.joinpath(d).iterdir()
-                    if f.name.startswith(src_file_prefix)
-                ]
-            )[0]
-        )
 
     filelist = found_src_files
     plot_temperature_metrics(filelist, labels, dest_dir)
