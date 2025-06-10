@@ -54,7 +54,6 @@ def preprocess(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, float, flo
         - Global minimum temperature
         - Global maximum temperature
     """
-
     # Data from last timestamp (steady state)
     last_time = df["elapsed_time"].max()
     df_steady = df[df["elapsed_time"] == last_time]
@@ -280,7 +279,14 @@ def main() -> None:
     )
     parser.add_argument(
         "fans",
-        choices=["schroff", "80", "100", "backplane", "backplane_guided"],
+        choices=[
+            "schroff",
+            "80",
+            "100",
+            "backplane",
+            "backplane_guided",
+            "backplane_guided_front_coverless",
+        ],
         help="Fan setup to use for the analysis.",
     )
     parser.add_argument(
@@ -298,6 +304,7 @@ def main() -> None:
         "100": "CUSTOM_100",
         "backplane": "BACKPLANE",
         "backplane_guided": "BACKPLANE_GUIDED",
+        "backplane_guided_front_coverless": "BACKPLANE_GUIDED_FRONT_COVERLESS",
     }[args.fans]
 
     src_dir = Path.cwd() / args.data_dir / fan_str
