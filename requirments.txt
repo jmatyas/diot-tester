@@ -11,6 +11,7 @@ anyio==4.9.0
 argon2-cffi==23.1.0
 argon2-cffi-bindings==21.2.0
 arrow==1.3.0
+artiq_tektronix_osc @ git+https://github.com/elhep/artiq_tektronix_oscilloscope@3b75d3a6a2a9f5241dff55b24c12dedf85148173
 asttokens==3.0.0
 async-lru==2.0.5
 attrs==25.3.0
@@ -35,6 +36,7 @@ h11==0.16.0
 httpcore==1.0.9
 httpx==0.28.1
 idna==3.10
+ifaddr==0.2.0
 ipykernel==6.29.5
 ipython==9.2.0
 ipython_pygments_lexers==1.1.1
@@ -106,6 +108,7 @@ scipy==1.15.3
 seaborn==0.13.2
 Send2Trash==1.8.3
 setuptools==80.3.1
+sipyco @ git+https://github.com/m-labs/sipyco@b4e1c42612b1d8f6befa8fdeb6d96df627e063a7
 six==1.17.0
 sniffio==1.3.1
 soupsieve==2.7
@@ -125,3 +128,4 @@ webcolors==24.11.1
 webencodings==0.5.1
 websocket-client==1.8.0
 widgetsnbextension==4.0.14
+zeroconf==0.147.0
