@@ -3,7 +3,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 
-
+DEFAULT_POWER_PER_CARD = 20
 def extract_slot_temperatures(df):
     """Extract max temperature and delta T per slot (up to 9 slots).
 
@@ -59,12 +59,12 @@ def plot_temperature_metrics(filelist, labels=None, output_path: Path | None = N
         )
     plt.xlabel("DIOT slot number")
     plt.ylabel("Max temperature [°C]")
-    name = "max_temp_per_slot.png"
+    name = f"max_temp_per_slot_{DEFAULT_POWER_PER_CARD}W.png"
     out_file = name if output_path is None else output_path / name
     plt.title("Max temperature per slot")
     plt.grid(True)
-    plt.legend()
-    plt.savefig(out_file)
+    plt.legend(loc="center left", bbox_to_anchor=(1.02, 0.5), borderaxespad=0.)
+    plt.savefig(out_file, bbox_inches="tight")
     plt.close()
 
     plt.figure(figsize=(10, 5))
@@ -80,11 +80,11 @@ def plot_temperature_metrics(filelist, labels=None, output_path: Path | None = N
     plt.ylabel("ΔT [°C]")
     plt.title("ΔT per slot")
     plt.grid(True)
-    plt.legend()
-    name = "deltaT_per_slot.png"
+    plt.legend(loc="center left", bbox_to_anchor=(1.02, 0.5), borderaxespad=0.)
+    name = f"deltaT_per_slot_{DEFAULT_POWER_PER_CARD}W.png"
     out_file = name if output_path is None else output_path / name
 
-    plt.savefig(out_file)
+    plt.savefig(out_file, bbox_inches="tight")
     plt.close()
 
 
@@ -123,7 +123,8 @@ def main():
 
     setups = sorted([d for d in src_dir.iterdir() if d.is_dir()])
 
-    src_file_prefix = "step_0_20W0"
+
+    src_file_prefix = f"step_0_{DEFAULT_POWER_PER_CARD}W0"
     if not setups:
         print("No setups found.")
         return

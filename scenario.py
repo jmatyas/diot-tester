@@ -15,7 +15,7 @@ FAN_CHANNEL = 1
 OT_SHUTDOWN = 90.0  # degrees Celsius
 HYSTERESIS = 85.0  # degrees Celsius
 MAX_STEP_DURATION_MINUTES = 20.0
-DEFAULT_POWER_PER_CARD = 10.0  # W
+DEFAULT_POWER_PER_CARD = 20.0  # W
 
 RESULTS_DIR = "results"
 
@@ -45,7 +45,7 @@ def set_fan_voltage(voltage: float, current: float, enable: bool = True):
 
     Args:
         voltage (float): Voltage to set (between 0 and 12 V)
-        current (float): Current to set (between 0 and 2 A)
+        current (float): Current to set (between 0 and 2.5 A)
         enable (bool): Whether to enable the output
     """
     if not (MIN_V <= voltage <= MAX_V):
@@ -59,6 +59,11 @@ def set_fan_voltage(voltage: float, current: float, enable: bool = True):
         psu.set_voltage(voltage)
         psu.set_current(current)
         psu.set_output_state(enable)
+#configuration of second PSU channel
+#        psu.select_channel(2)
+ #       psu.set_voltage(voltage)
+  #      psu.set_current(current)
+   #     psu.set_output_state(enable)
 
     except Exception as e:
         print(f"Error setting fan voltage: {e}")
@@ -136,7 +141,7 @@ def scenario_step(
     logger.info(f"  - Monitoring session: {monitor_session.session_name}")
     logger.info(f"  - Monitoring session file path: {monitor_session.file_path}")
 
-    set_fan_voltage(fan_voltage, 2.0, enable=True)
+    set_fan_voltage(fan_voltage, 2.75, enable=True)
 
     # zero output power for all cards
     crate_manager.set_cards_load_power(
@@ -261,7 +266,7 @@ def setup_scenario_steps(results_dir: str) -> list[StepParams]:
     )
     steps.append(step)
 
-    fan_failure_voltages = [12.0, 11.5, 11.0, 10.5, 10.0, 9.5, 9.0, 8.5, 8.0, 7.5, 7.0]
+    fan_failure_voltages = [12.0, 11.5, 11.0, 10.5, 10.0, 9.5, 9.0, 8.5, 8.0, 7.5, 7.0, 6.5, 6, 5.5, 5, 4.5, 4, 3.5, 3]
 
     len_steps = len(steps)
     for idx, voltage in enumerate(fan_failure_voltages):
@@ -297,10 +302,15 @@ def main():
         choices=[
             "schroff",
             "80",
+            "80_SAN_ACE",
             "100",
             "backplane",
             "backplane_guided",
+            "backplane_guided_flow_reversed",
             "backplane_guided_front_coverless",
+            "radial_two_rows",
+            "radial_three_rows",
+            "radial_two_rows_2",
         ],
         help="Fan setup to use for the analysis.",
     )
@@ -328,10 +338,15 @@ def main():
     fan_str = {
         "schroff": "SCHROFF",
         "80": "CUSTOM_80",
+        "80_SAN_ACE": "CUSTOM_80_SAN_ACE",
         "100": "CUSTOM_100",
         "backplane": "BACKPLANE",
         "backplane_guided": "BACKPLANE_GUIDED",
+        "backplane_guided_flow_reversed":"BACKPLANE_GUIDED_FLOW_REVERSED",
         "backplane_guided_front_coverless": "BACKPLANE_GUIDED_FRONT_COVERLESS",
+        "radial_two_rows":"RADIAL_TWO_ROWS",
+        "radial_three_rows":"RADIAL_THREE_ROWS",
+        "radial_two_rows_2":"RADIAL_TWO_ROWS_2",
     }[args.fans]
 
     results_dir = f"{args.results_dir}/{fan_str}"
