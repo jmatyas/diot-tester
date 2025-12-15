@@ -208,7 +208,7 @@ if __name__ == "__main__":
         sys.exit(1)
     if len(devs) > 1:
         print("More than one FTDI device found. Please specify the device.")
-        print("Devices found:")
+        print(f"{len(devs)} devices found:")
         for dev in devs:
             print(dev)
         sys.exit(1)
