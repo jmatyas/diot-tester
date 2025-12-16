@@ -386,7 +386,7 @@ class Keysight34461A:
 
 
 def main():
-    from const import KEYSIGHT_DMM_IP_HIGH as IP_HIGH
+    from utils.const import KEYSIGHT_DMM_IP_HIGH as IP_HIGH
     
     """Command line interface for testing the DMM driver."""
     parser = argparse.ArgumentParser(description="Keysight 34461A DMM Controller")

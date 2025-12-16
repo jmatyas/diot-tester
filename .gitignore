@@ -6,3 +6,8 @@ __pycache__/
 *.log
 *.log.old
 results/
+
+*.csv
+*.png
+
+test_results/

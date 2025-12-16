@@ -7,7 +7,7 @@ from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 
-from const import KEYSIGHT_DMM_IP_HIGH, KEYSIGHT_DMM_IP_LOW
+from utils.const import KEYSIGHT_DMM_IP_HIGH, KEYSIGHT_DMM_IP_LOW
 from diot import DIOTCrateManager
 from utils.keysight_dmm import Keysight34461A, MeasurementMode
 from voltage_drop.config import (
@@ -27,7 +27,7 @@ from voltage_drop.config import (
     VOLTAGE_DIVIDER_RATIO,
 )
 from voltage_drop.data_structs import MeasurementPoint, SlotPairMeasurement, TestResults
-from voltage_drop.utils import (
+from voltage_drop.misc import (
     calculate_power_from_current,
     j3_to_rail_voltage,
     slot_to_serial,
