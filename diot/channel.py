@@ -98,9 +98,11 @@ class Channel(SensorChannel):
         pwm_channel: PWMChannel,
         temperature_sensor: LM75,
         max_power: float | None = None,
+        limit_pwr: float | None = None,
     ):
         if max_power is None:
             max_power = 5  # 5 Watts
+        self.limit_pwr = limit_pwr
         self.pwm_channel = pwm_channel
         self.temperature_sensor = temperature_sensor
         self.max_power = max_power
@@ -135,6 +137,10 @@ class Channel(SensorChannel):
                 f"Power set to maximum value of {self.max_power} W. "
                 f"Requested power was {power} W."
             )
+
+        if self.limit_pwr:
+            if power > self.limit_pwr:
+                raise ValueError(f"Power must be less than limit of {self.limit_pwr}. Desired power: {power}.")
 
         duty_cycle = int(power / self.max_power * 0xFFFF)
         self._load_power_cached = duty_cycle / 0xFFFF * self.max_power

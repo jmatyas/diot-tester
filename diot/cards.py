@@ -117,7 +117,7 @@ class DIOTCard(I2C):
 
         self.load_channels = [
             Channel(self.pwm_chips[0].channels[i], self.lm75s[i]) for i in range(16)
-        ] + [Channel(self.aux_load, self.aux_lm75, max_power=3)]
+        ] + [Channel(self.aux_load, self.aux_lm75, max_power=10, limit_pwr=6.0)]
 
         self.diot_conn_channels = [
             SensorChannel(LM75(self.i2c_buses[3], device_address=0x49)),  # P6 connector
