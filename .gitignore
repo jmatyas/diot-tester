@@ -5,9 +5,14 @@ __pycache__/
 
 *.log
 *.log.old
-results/
 
 *.csv
 *.png
 
+results/
 test_results/
+runs/
+plots/
+spectra/
+spectra_csv/
+waveforms/

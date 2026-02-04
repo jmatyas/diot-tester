@@ -128,6 +128,8 @@ def set_card_load(
 
     try:
         card = crate_manager.get_card(serial)
+       # aux_ch = card.get_channel(16)
+       # aux_ch.load_power = 
         card.set_all_load_power(power_per_channel)
 
         # Verify setting (read back from one channel)

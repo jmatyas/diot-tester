@@ -1,0 +1,170 @@
+from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from utils.scope import test_scope
+import pandas as pd
+from matplotlib import pyplot as plt
+from utils.test_data import plot_fft, get_sampling_dt, FFT_DB_LIMITS
+
+ip = "192.168.95.106"
+
+outdir = Path("scope_test_output")
+outdir.mkdir(exist_ok=True)
+
+from pathlib import Path
+import pandas as pd
+from matplotlib import pyplot as plt
+
+def plot_fft_from_scope_csv(csv_path: str | Path, outdir: str | Path, save_csv: bool = True) -> Path:
+    """
+    Glue-only:
+    - load one scope CSV (channel,label,time,voltage)
+    - compute dt using utils.test_data.get_sampling_dt()
+    - call utils.test_data.plot_fft() to produce FFT PNG (+ optionally FFT CSV)
+    """
+    csv_path = Path(csv_path)
+    outdir = Path(outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
+
+    df = pd.read_csv(csv_path)
+
+    required = {"label", "time", "voltage"}
+    missing = required - set(df.columns)
+    if missing:
+        raise ValueError(f"{csv_path.name}: missing columns: {sorted(missing)}")
+
+    # Ensure numeric + sort by time (important for dt)
+    df["time"] = pd.to_numeric(df["time"], errors="coerce")
+    df["voltage"] = pd.to_numeric(df["voltage"], errors="coerce")
+    df = df.dropna(subset=["time", "voltage"]).sort_values("time")
+
+    if df.empty:
+        raise ValueError(f"{csv_path.name}: no valid numeric data after parsing")
+
+    dt = get_sampling_dt(df)
+
+    # Each scope CSV is typically one channel/label; still, we use unique labels robustly.
+    labels = sorted(df["label"].unique())
+
+    # Output naming: keep it local and predictable
+    # Example: scope_test_output/ffts/fft_<ident>_chan1_Ch1.png
+    stem = csv_path.stem
+
+    last_png = None
+    for label in labels:
+        out_png = outdir / f"fft_{stem}_{label}.png"
+        out_csv = (outdir / f"fft_{stem}_{label}.csv") if save_csv else None
+
+        # plot_fft expects a df that may include multiple labels; it selects df[df["label"]==label]
+        plot_fft(df, label, dt, out_png, power=None, out_csv=out_csv)
+        last_png = out_png
+
+    return last_png
+
+
+
+
+def plot_all_ffts_from_outdir(scope_outdir: str | Path, recursive: bool = False, save_csv: bool = True) -> list[Path]:
+    scope_outdir = Path(scope_outdir)
+    ffts_dir = scope_outdir / "ffts"
+    ffts_dir.mkdir(parents=True, exist_ok=True)
+
+    csv_files = sorted(scope_outdir.rglob("*.csv")) if recursive else sorted(scope_outdir.glob("*.csv"))
+
+    saved = []
+    for csv_path in csv_files:
+        # don't recurse into output folders
+        if ffts_dir in csv_path.parents or (scope_outdir / "waveforms") in csv_path.parents:
+            continue
+
+        # If your scope exports are exactly *_chan1.csv and *_chan2.csv, keep this filter.
+        # It prevents trying FFT on unrelated CSVs.
+        if not (csv_path.name.endswith("_chan1.csv") or csv_path.name.endswith("_chan2.csv")):
+            continue
+
+        saved.append(plot_fft_from_scope_csv(csv_path, ffts_dir, save_csv=save_csv))
+
+    return saved
+
+def plot_waveform_csv(csv_path: str | Path, outdir: str | Path, t0_zero: bool = True) -> Path:
+    """
+    Plot waveform CSV in 'long format':
+      channel,label,time,voltage
+
+    - x-axis: time (optionally shifted so it starts at 0)
+    - y-axis: voltage
+    - one line per (channel,label)
+    - saves PNG next to outdir
+
+    Returns: path to saved PNG
+    """
+    csv_path = Path(csv_path)
+    outdir = Path(outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
+
+    df = pd.read_csv(csv_path)
+
+    required = {"channel", "label", "time", "voltage"}
+    missing = required - set(df.columns)
+    if missing:
+        raise ValueError(f"{csv_path.name}: missing columns: {sorted(missing)}")
+
+    # Ensure numeric types
+    df["time"] = pd.to_numeric(df["time"], errors="coerce")
+    df["voltage"] = pd.to_numeric(df["voltage"], errors="coerce")
+    df = df.dropna(subset=["time", "voltage"])
+
+    if df.empty:
+        raise ValueError(f"{csv_path.name}: no valid numeric data after parsing")
+
+    if t0_zero:
+        t0 = df["time"].min()
+        df["time"] = df["time"] - t0
+        x_label = "time (s), shifted"
+    else:
+        x_label = "time (s)"
+
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+
+    # One trace per channel/label
+    for (ch, lab), g in df.groupby(["channel", "label"], sort=True):
+        g = g.sort_values("time")
+        ax.plot(g["time"].to_numpy(), g["voltage"].to_numpy(), label=f"CH{ch} {lab}")
+
+    ax.set_title(csv_path.stem)
+    ax.set_xlabel(x_label)
+    ax.set_ylabel("voltage (V)")
+    ax.legend(loc="best")
+
+    png_path = outdir / f"{csv_path.stem}.png"
+    fig.savefig(png_path, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+
+    return png_path
+
+
+def plot_all_waveforms_from_outdir(scope_outdir: str | Path, recursive: bool = False) -> list[Path]:
+    scope_outdir = Path(scope_outdir)
+    waveforms_dir = scope_outdir / "waveforms"
+    waveforms_dir.mkdir(parents=True, exist_ok=True)
+
+    csv_files = sorted(scope_outdir.rglob("*.csv")) if recursive else sorted(scope_outdir.glob("*.csv"))
+
+    saved = []
+    for csv_path in csv_files:
+        # safety: do not re-plot outputs
+        if waveforms_dir in csv_path.parents:
+            continue
+        saved.append(plot_waveform_csv(csv_path, waveforms_dir, t0_zero=True))
+
+    return saved
+
+
+test_scope(ip, outdir)
+
+saved = plot_all_waveforms_from_outdir(outdir, recursive=False)
+print(f"Saved {len(saved)} waveforms into {outdir / 'waveforms'}")
+
+fft_saved = plot_all_ffts_from_outdir(outdir, recursive=False, save_csv=True)
+print(f"Saved {len(fft_saved)} FFT plots into {outdir / 'ffts'}")
