@@ -36,6 +36,7 @@ def measure_power_rail_noise(
     print(f"Heater power levels       : {power_levels} W")
     print(f"Baseline runs             : {baseline_n_runs}")
     print(f"Heating runs              : {heating_n_runs}")
+    print("FFT averaging method      :", getattr(test_data, "FFT_AVG_METHOD", "unknown"))
     print("")
     print("Scope connections:")
     print(f"  CH1 -> heater card {heater_serial} (12 V probe connector)")
@@ -64,12 +65,12 @@ def measure_power_rail_noise(
 
             if is_baseline:
                 input(
-                "\nBASELINE measurement (P=0): switch OFF the PSU crate, then press Enter to continue..."
+                "\nBASELINE measurement (P=0): press Enter to continue..."
                 )
             else:
-                input(
-             f"\nMeasurement for P={p}: switch ON the PSU crate, then press Enter to continue..."
-                )
+            #    input(
+            # f"\nMeasurement for P={p}: switch ON the PSU crate, then press Enter to continue..."
+            #    )
 
                 if card is None:# DIOT is initialized ONLY when crate is ON
                     card = DIOTCard(serial=heater_serial)
@@ -157,9 +158,9 @@ def main():
     measure_power_rail_noise(
     heater_serial="DT00",
     victim_serial="DT01",
-    power_levels=(0.0, 1),
-    baseline_n_runs=20,
-    heating_n_runs=20,
+    power_levels=(0.0, 2),
+    baseline_n_runs=10,
+    heating_n_runs=10,
     )
 
 if __name__ == "__main__":

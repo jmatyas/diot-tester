@@ -106,14 +106,15 @@ def export_fft_ratio_plot(
     return out_png
 
 num_csv = Path(
-    "/home/knorowski/diot-tester/12_V_AC_NOISE PERFORMANCE/20260203_120112/heater_DT00__victim_DT01_PSU_ON_FANTRAY_ON/fft_p_0p0_avg_Ch1.csv"
+    "/home/knorowski/diot-tester/runs/20260206_144422/heater_DT00__victim_DT01/fft_p_0p0_avg_Ch1.csv"
 )
 den_csv = Path(
-    "/home/knorowski/diot-tester/12_V_AC_NOISE PERFORMANCE/20260203_114335/heater_DT00__victim_DT01_PSU_ON_FANTRAY_OFF/fft_p_0p0_avg_Ch1.csv"
+    "/home/knorowski/diot-tester/runs/20260206_145617/heater_DT00__victim_DT01/fft_p_0p0_avg_Ch1.csv"
 )
 
 out_dir = Path("/home/knorowski/diot-tester")
-out_base = out_dir / "fft_ratio_p_0p0_FANTRAY_ON_vs_OFF_Ch1"
+out_base = out_dir / "fft_ratio"
+
 
 out_csv = out_base.with_suffix(".csv")
 out_png = out_base.with_suffix(".png")
@@ -128,3 +129,5 @@ export_fft_ratio_plot(
     ratio_csv=out_csv,
     out_png=out_png,
 )
+
+print(f"output files exported to {out_dir}")

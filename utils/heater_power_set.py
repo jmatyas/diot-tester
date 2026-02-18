@@ -3,7 +3,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from diot.cards import DIOTCard
 
-p=1
+p=3
 heater_serial="DT00"
 
 card = DIOTCard(serial=heater_serial)

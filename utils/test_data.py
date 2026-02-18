@@ -18,13 +18,33 @@ FFT_PNG_TEMPLATE = "spectrum_{label}{ptag}_{timestamp}.png"
 WAVEFORMS_DIR = Path("waveforms")
 HEATER_R_OHM = 1.1  # 2R2 || 2R2
 HEATER_VOLTAGE = 3.3
+FFT_AVG_METHOD = "mean"  # "mean" or "median"
 
+
+def extract_run_idx(run_name: str) -> int:
+    """
+    Extract run index from strings like:
+      'p_2p0_run03' or 'p_0p0__for_p_2p0_run03'
+    Returns -1 if not found.
+    """
+    if not isinstance(run_name, str):
+        return -1
+    if "_run" not in run_name:
+        return -1
+    try:
+        return int(run_name.rsplit("_run", 1)[1])
+    except ValueError:
+        return -1
+    
 def amplitude_v_to_dbv(amp_v, floor=1e-30):
     """Convert amplitude in volts to dBV: 20*log10(V / 1V)."""
     amp_v = np.maximum(np.asarray(amp_v), floor)
     return 20 * np.log10(amp_v)
 
-def compute_avg_from_fft_csv(files, value_col):
+def compute_avg_from_fft_csv(files, value_col, method=None):
+    if method is None:
+        method = FFT_AVG_METHOD
+
     """
     Analysis-only:
     Read multiple FFT CSVs and return (freq_hz, avg_values).
@@ -44,7 +64,15 @@ def compute_avg_from_fft_csv(files, value_col):
             freq = df["freq_hz"].to_numpy()
         values.append(df[value_col].to_numpy())
 
-    avg_values = np.mean(np.vstack(values), axis=0)
+    stack = np.vstack(values)
+
+    if method == "mean":
+        avg_values = np.mean(stack, axis=0)
+    elif method == "median":
+        avg_values = np.median(stack, axis=0)
+    else:
+        raise ValueError("method must be 'mean' or 'median'")
+
     return freq, avg_values
 
 def save_fft_amp_csv(freq_hz, amp_v, out_csv):
@@ -197,7 +225,7 @@ def average_fft_runs(run_dir, tag, n_runs=10):
         files = [run_dir / f"fft_{tag}_run{run_idx:02d}_{label}.csv" for run_idx in range(n_runs)]
 
         # --- analysis-only ---
-        freq, avg_amp_v = compute_avg_from_fft_csv(files, value_col="amp_v")
+        freq, avg_amp_v = compute_avg_from_fft_csv(files, value_col="amp_v",method=FFT_AVG_METHOD)
         avg_dbv = amplitude_v_to_dbv(avg_amp_v)
 
         # --- IO-only ---
@@ -316,7 +344,7 @@ def process_baseline(run_dir, tag="p_0p0", n_runs=10):
         dt = get_sampling_dt(df)
 
         save_vrms_csv(
-            df,
+           df,
             run_dir / f"vrms_{run_tag}.csv",
             extra_cols={"tag": tag, "run_idx": run_idx, "run_tag": run_tag},
         )
@@ -333,7 +361,7 @@ def process_baseline(run_dir, tag="p_0p0", n_runs=10):
     #2) Average FFT amplitude over runs, save avg CSV + avg PNG (in dBV)
     for label in labels:
         files = [run_dir / f"fft_{tag}_run{run_idx:02d}_{label}.csv" for run_idx in range(n_runs)]
-        freq, avg_amp_v = compute_avg_from_fft_csv(files, value_col="amp_v")
+        freq, avg_amp_v = compute_avg_from_fft_csv(files, value_col="amp_v",method=FFT_AVG_METHOD)
         avg_db = amplitude_v_to_dbv(avg_amp_v)
 
         out_avg = run_dir / f"fft_{tag}_avg_{label}.csv"
@@ -507,7 +535,10 @@ def compute_vrms_crosstalk_table(
             }
         )
 
-    return pd.DataFrame(rows)
+    df_out = pd.DataFrame(rows)
+    df_out["run_idx"] = df_out["run"].map(extract_run_idx)  # jeśli nie masz tu helpera, patrz niżej
+    df_out = df_out.sort_values("run_idx").reset_index(drop=True)
+    return df_out
 
 def compute_vrms_crosstalk(
     run_dir,
@@ -537,40 +568,38 @@ def annotate_expected_freqs(
     smps_hz: float = 1.25e6,
     smps_harmonics: int = 4,
     pwm_harmonics: int = 4,
+    pwm_mod_hz: float = 2500.0,
+    y_axes: float = 1.02,   # one fixed height, above axes
+    fontsize: int = 8,
 ):
     """
-    Draw vertical markers for expected PWM + SMPS switching frequencies.
-    Labels are placed near the top of the plot.
+    Vertical markers for expected PWM + SMPS switching frequencies.
+    All labels at one height. Harmonics labeled as 'k×'.
     """
-    # PWM fundamental + harmonics
-    for k in range(1, pwm_harmonics + 1):
-        f = k * pwm_hz
-        ax.axvline(f, linestyle=":", linewidth=1.0)
-        label = f"PWM {pwm_hz:.2f} Hz" if k == 1 else f"{k}×"
+    def add(freq: float, label: str):
+        ax.axvline(freq, linestyle=":", linewidth=1.0)
         ax.text(
-            f, 0.98,
-            label,
+            freq, y_axes, label,
             transform=ax.get_xaxis_transform(),
             rotation=90,
-            va="center",
-            ha="right",
-            fontsize=9,
+            va="bottom",
+            ha="center",
+            fontsize=fontsize,
+            clip_on=False,
         )
 
+    # PWM fundamental + harmonics
+    add(pwm_hz, f"PWM {pwm_hz:.0f} Hz")
+    for k in range(2, pwm_harmonics + 1):
+        add(k * pwm_hz, f"{k}×")
+
+    # PWM modulation
+    add(pwm_mod_hz, f"PWM high state\n modul. {pwm_mod_hz/1e3:.1f} kHz")
+
     # SMPS fundamental + harmonics
-    for k in range(1, smps_harmonics + 1):
-        f = k * smps_hz
-        ax.axvline(f, linestyle=":", linewidth=1.0)
-        label = f"SMPS {smps_hz/1e6:.2f} MHz" if k == 1 else f"{k}×"
-        ax.text(
-            f, 0.98,
-            label,
-            transform=ax.get_xaxis_transform(),
-            rotation=90,
-            va="top",
-            ha="right",
-            fontsize=9,
-        )
+    add(smps_hz, f"SMPS {smps_hz/1e6:.2f} MHz")
+    for k in range(2, smps_harmonics + 1):
+        add(k * smps_hz, f"{k}×")
 
 
 def plot_ratio_avg_comparison(
@@ -657,14 +686,19 @@ def plot_ratio_avg_comparison(
         roles = f"{src}: noise source | {vic}: victim"
 
     fig.suptitle(
-    rf"{roles} | FFT ratio [dB] = $dBV_{{heating}} - dBV_{{baseline}}$ | comparison across powers"
+    rf"{roles} | FFT ratio [dB] = $dBV_{{heating}} - dBV_{{baseline}}$ | comparison across powers", y=1.0,
     )
 
-    fig.tight_layout(rect=[0, 0, 1, 0.96])
+    fig.subplots_adjust(hspace=0.43, top=0.85)
 
     plt.savefig(out_png)
     plt.close(fig)
     print(f"Saved ratio comparison plot to {out_png}")
+
+def process_single_run_vrms_only(run_dir, run_tag):
+    run_dir = Path(run_dir)
+    df = load_run(run_dir, run_tag)
+    save_vrms_csv(df, run_dir / f"vrms_{run_tag}.csv", extra_cols={"run_tag": run_tag})    
 
 
 if __name__ == "__main__":

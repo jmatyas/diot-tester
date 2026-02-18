@@ -320,6 +320,41 @@ def test_scope(identifier, outdir=None, base_name=None,vertical_scale_ch1: float
             print(f"\t=> CSV samples: {n_csv:.3e}")
         return ident
 
+def dump_current_scope_to_csv(identifier, outdir=None, base_name=None, channels=(1, 2)):
+    """
+    Dump the currently displayed/acquired waveform(s) from the scope to CSV.
+    Assumes the acquisition was configured and triggered manually on the scope UI.
+    """
+    outdir = Path(outdir) if outdir is not None else Path(".")
+    outdir.mkdir(parents=True, exist_ok=True)
+
+    labels = {1: "Ch1", 2: "Ch2", 3: "Ch3", 4: "Ch4"}
+
+    with Scope(identifier) as scope:
+        ident = scope.identify()
+        print(f"\t=> {ident}")
+        ident_s = "_".join([x.lower() for x in ident.split(",")[:3]])
+        fname_base = base_name if base_name is not None else ident_s
+
+        # Freeze acquisition so the record does not change during transfer
+        try:
+            scope.scope.write("ACQuire:STATE STOP")
+        except Exception:
+            pass
+
+        for ch in channels:
+            print(f"Retrieving data from channel {ch} ({labels.get(ch, f'Ch{ch}')})")
+            t, y = scope.get_waveform(channel=ch)
+            outpath = outdir / f"{fname_base}_chan{ch}.csv"
+
+            with open(outpath, "w") as f:
+                f.write("channel,label,time,voltage\n")
+                for ti, yi in zip(t, y):
+                    f.write(f"{ch},{labels.get(ch, f'Ch{ch}')},{ti},{yi}\n")
+
+            print(f"\t=> Channel {ch} data saved to {outpath}")
+
+
 def main():
     test_scope(ip)
 
