@@ -1,0 +1,12 @@
+[submodule "submodules/artiq"]
+	path = submodules/artiq
+	url = git@github.com:elhep/artiq.git
+	branch = kasli-diot
+[submodule "submodules/misoc"]
+	path = submodules/misoc
+	url = git@github.com:elhep/misoc.git
+	branch = kasli_diot
+[submodule "submodules/migen"]
+	path = submodules/migen
+	url = git@github.com:elhep/migen.git
+	branch = kasli-diot

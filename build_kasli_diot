@@ -1,0 +1,7 @@
+#!/bin/sh
+
+python -m artiq.gateware.targets.kasli_diot --output-dir build --no-compile-gateware desc/kasli_diot_fastino.json
+
+artiq_mkfs -s ip 192.168.95.70 build/diot-tester-fastino/storage.img
+
+artiq_ddb_template -o build/diot-tester-fastino/device_db.py desc/kasli_diot_fastino.json

@@ -1,0 +1,6 @@
+#!/bin/sh
+
+artiq_flash -t kasli_diot --srcbuild -d build/diot-tester-fastino \
+    -f build/diot-tester-fastino/storage.img \
+    erase=firmware,bootloader,gateware,storage \
+    write=firmware,bootloader,storage load
