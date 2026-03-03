@@ -1,0 +1,5 @@
+#!/bin/sh
+
+VARIANT="diot-tester-fastino"
+
+artiq_flash -t kasli_diot --srcbuild -d build/$VARIANT load

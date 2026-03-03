@@ -61,56 +61,56 @@ device_db["fastino0"] = {
     "type": "local",
     "module": "artiq.coredevice.fastino",
     "class": "Fastino",
-    "arguments": {"channel": 0x000000, "log2_width": 4}
+    "arguments": {"channel": 0x000000, "log2_width": 5}
 }
 
 device_db["fastino1"] = {
     "type": "local",
     "module": "artiq.coredevice.fastino",
     "class": "Fastino",
-    "arguments": {"channel": 0x000001, "log2_width": 4}
+    "arguments": {"channel": 0x000001, "log2_width": 5}
 }
 
 device_db["fastino2"] = {
     "type": "local",
     "module": "artiq.coredevice.fastino",
     "class": "Fastino",
-    "arguments": {"channel": 0x000002, "log2_width": 4}
+    "arguments": {"channel": 0x000002, "log2_width": 5}
 }
 
 device_db["fastino3"] = {
     "type": "local",
     "module": "artiq.coredevice.fastino",
     "class": "Fastino",
-    "arguments": {"channel": 0x000003, "log2_width": 4}
+    "arguments": {"channel": 0x000003, "log2_width": 5}
 }
 
 device_db["fastino4"] = {
     "type": "local",
     "module": "artiq.coredevice.fastino",
     "class": "Fastino",
-    "arguments": {"channel": 0x000004, "log2_width": 4}
+    "arguments": {"channel": 0x000004, "log2_width": 5}
 }
 
 device_db["fastino5"] = {
     "type": "local",
     "module": "artiq.coredevice.fastino",
     "class": "Fastino",
-    "arguments": {"channel": 0x000005, "log2_width": 4}
+    "arguments": {"channel": 0x000005, "log2_width": 5}
 }
 
 device_db["fastino6"] = {
     "type": "local",
     "module": "artiq.coredevice.fastino",
     "class": "Fastino",
-    "arguments": {"channel": 0x000006, "log2_width": 4}
+    "arguments": {"channel": 0x000006, "log2_width": 5}
 }
 
 device_db["fastino7"] = {
     "type": "local",
     "module": "artiq.coredevice.fastino",
     "class": "Fastino",
-    "arguments": {"channel": 0x000007, "log2_width": 4}
+    "arguments": {"channel": 0x000007, "log2_width": 5}
 }
 
 device_db["led0"] = {

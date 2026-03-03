@@ -8,42 +8,42 @@
         {
             "type": "fastino",
             "slot": 0,
-            "log2_width": 4            
+            "log2_width": 5            
         },
         {
             "type": "fastino",
             "slot": 1,
-            "log2_width": 4
+            "log2_width": 5
         },
         {
             "type": "fastino",
             "slot": 2,
-            "log2_width": 4
+            "log2_width": 5
         },
         {
             "type": "fastino",
             "slot": 3,
-            "log2_width": 4            
+            "log2_width": 5            
         },
         {
             "type": "fastino",
             "slot": 4,
-            "log2_width": 4
+            "log2_width": 5
         },
         {
             "type": "fastino",
             "slot": 5,
-            "log2_width": 4
+            "log2_width": 5
         },
         {
             "type": "fastino",
             "slot": 6,
-            "log2_width": 4
+            "log2_width": 5
         },
         {
             "type": "fastino",
             "slot": 7,
-            "log2_width": 4
+            "log2_width": 5
         }
     ]
 }

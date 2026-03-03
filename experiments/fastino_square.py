@@ -1,25 +1,24 @@
 from artiq.experiment import *
+from numpy import int32
 
 class FastinoSquare(EnvExperiment):
 
     def build(self):
         self.setattr_device('core')
-
         self.fastinos = []
         for i in range(8):
             self.fastinos.append(self.get_device(f'fastino{i}'))
 
+        self.half_period = 15 * us
+
+        self.high_voltages = [int32(0) for i in range(16)]
+        self.low_voltages = [int32(0) for i in range(16)]
+        self.fastinos[0].voltage_group_to_mu([9.9 for i in range(32)], self.high_voltages)
+        self.fastinos[0].voltage_group_to_mu([-9.9 for i in range(32)], self.low_voltages)
+
     @kernel
-    def init_fastino(self):
-        self.core.break_realtime()
-        for fastino in self.fastinos:
-            fastino.init()
-            delay(200*us)
-
-
     def run(self):
         self.core.reset()
-        self.init_fastino()
         self.kernelled_run()
 
     @kernel
@@ -27,9 +26,9 @@ class FastinoSquare(EnvExperiment):
         self.core.break_realtime()
         while True:
             for fastino in self.fastinos:
-                fastino.set_group(0, [9.9 for i in range(32)])
-                delay(15 * ms)
-                fastino.set_group(0, [-9.9 for i in range(32)])
-                delay(15 * ms)
-        
+                fastino.set_group_mu(0, self.high_voltages)
+            delay(self.half_period)
+            for fastino in self.fastinos:
+                fastino.set_group_mu(0, self.low_voltages)
+            delay(self.half_period)
 

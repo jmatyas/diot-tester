@@ -1,7 +1,19 @@
 #!/bin/sh
 
-python -m artiq.gateware.targets.kasli_diot --output-dir build --no-compile-gateware desc/kasli_diot_fastino.json
+set -e
 
-artiq_mkfs -s ip 192.168.95.70 build/diot-tester-fastino/storage.img
+VARIANT="diot-tester-fastino"
 
-artiq_ddb_template -o build/diot-tester-fastino/device_db.py desc/kasli_diot_fastino.json
+python -m artiq.gateware.targets.kasli_diot --output-dir build desc/kasli_diot_fastino.json
+
+artiq_ddb_template -o build/$VARIANT/device_db.py desc/kasli_diot_fastino.json
+
+artiq_compile --device-db build/$VARIANT/device_db.py -o build/$VARIANT/startup.elf experiments/startup.py
+artiq_compile --device-db build/$VARIANT/device_db.py -o build/$VARIANT/idle.elf experiments/fastino_square.py
+
+artiq_mkfs -s ip 192.168.95.70 \
+    -f idle_kernel build/$VARIANT/idle.elf \
+    -f startup_kernel build/$VARIANT/startup.elf \
+    build/$VARIANT/storage.img 
+    
+
