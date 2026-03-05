@@ -3,6 +3,9 @@ __pycache__/
 .venv/
 *.pyc
 
+*.mdb
+*.mdb-lock
+
 *.log
 *.log.old
 results/
