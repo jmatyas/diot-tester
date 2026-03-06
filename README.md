@@ -18,7 +18,7 @@ nix develop
 python <scenario_that_relies_on_ARTIQ>
 ```
 
-> **Note:** Gateware compilation (`build_kasli_diot`) is **not** supported in the
+> **Note:** Gateware compilation (`make build`) is **not** supported in the
 > Nix shell due to Rust toolchain constraints. Use the submodule environment for
 > that (see below).
 
@@ -26,14 +26,16 @@ python <scenario_that_relies_on_ARTIQ>
 
 ```bash
 direnv allow        # adds submodule paths to PYTHONPATH (run once after cloning)
-./build_kasli_diot  # compile gateware + kernels
-./flash_kasli_diot  # full erase + flash
-./load_kasli_diot   # fast reload (no erase)
+make build          # full build: gateware + device_db + kernels + storage image
+make build-storage  # compile kernels + storage image only (needs existing device_db.py)
+make flash          # erase and flash gateware + firmware + storage, then load
+make flash-storage  # erase and flash storage partition only, then load
+make load           # load bitstream to FPGA over USB (no flash write)
 ```
 
 ## Python loader
 
-`kasli_diot_utils.load()` wraps `load_kasli_diot` so a scenario script can
+`kasli_diot_utils.load()` wraps `artiq_flash` comamnds so a scenario script can
 programmatically reload gateware between measurements:
 
 ```python
@@ -43,7 +45,7 @@ load()                              # default variant: diot-tester-fastino
 load(variant="my-custom-variant")   # override variant
 ```
 
-This is equivalent to running `./load_kasli_diot` from the shell and raises
+This is equivalent to running `make load` from the shell and raises
 `subprocess.CalledProcessError` on failure.
 
 ## Hardware descriptor
