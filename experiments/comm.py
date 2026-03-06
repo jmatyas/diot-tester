@@ -5,13 +5,13 @@ from artiq.coredevice.kasli_i2c import port_mapping
 
 @kernel
 def switch_select(ob):
-    ob.i2c_switch0.set(3)   # SHARED
+    ob.i2c_switch0.set(3)  # SHARED
     try:
         ob.core.break_realtime()
         # PCA9539 I/O expander
         i2c_write_many(0, 0xEC, 0x02, [0])
-        i2c_write_many(0, 0xEC, 0x02, [1<<ob.port])
-        delay(100*ms)
+        i2c_write_many(0, 0xEC, 0x02, [1 << ob.port])
+        delay(100 * ms)
     except I2CError:
         ob.core.break_realtime()
         # MCP23017 I/O expander
@@ -19,10 +19,10 @@ def switch_select(ob):
         i2c_write_many(0, 0x44, 0x02, [0])
         # Select given peripheral
         i2c_write_many(0, 0x44, 0x09, [1 << ob.port])
-        delay(100*ms)
+        delay(100 * ms)
 
 
-@kernel    
+@kernel
 def switch_deselect(ob):
     ob.i2c_switch0.set(3)
     try:
@@ -58,10 +58,10 @@ class TestI2CComm(EnvExperiment):
 
     @kernel
     def init_switch(self):
-        self.i2c_switch0.set(3)   # SHARED
-        i2c_write_many(0, 0xEC, 0x06, [0x00]) # all servmods as output
-        i2c_write_many(0, 0xEC, 0x07, [0x00]) # OEn, DIR and Reset as output
-        i2c_write_many(0, 0xEC, 0x03, [0x60]) # as above
+        self.i2c_switch0.set(3)  # SHARED
+        i2c_write_many(0, 0xEC, 0x06, [0x00])  # all servmods as output
+        i2c_write_many(0, 0xEC, 0x07, [0x00])  # OEn, DIR and Reset as output
+        i2c_write_many(0, 0xEC, 0x03, [0x60])  # as above
         self.i2c_switch0.unset()
 
     def run(self):
@@ -79,16 +79,13 @@ class TestI2CComm(EnvExperiment):
         self.print_regs()
         print("Setting EEM adapter LEDs to ON...")
         self.set_eem_adapter_leds()
-        
 
     @kernel
     def set_eem_adapter_leds(self):
         dev_addr = 0x77
         switch_select(self)
         try:
-            i2c_write_many(1, dev_addr<<1, 0x06, [0x1F])   # set LEDs to outputs
-            i2c_write_many(1, dev_addr<<1, 0x02, [0x1F])
+            i2c_write_many(1, dev_addr << 1, 0x06, [0x1F])  # set LEDs to outputs
+            i2c_write_many(1, dev_addr << 1, 0x02, [0x1F])
         finally:
             switch_deselect(self)
-
-

@@ -1,0 +1,8 @@
+#!/bin/sh
+
+VARIANT="diot-tester-fastino"
+
+artiq_flash -t kasli_diot --srcbuild -d build/$VARIANT \
+    -f build/$VARIANT/storage.img \
+    erase=storage \
+    write=storage load

@@ -1,13 +1,14 @@
 from artiq.experiment import *
 
+
 class FastinoLeds(EnvExperiment):
 
     def build(self):
-        self.setattr_device('core')
+        self.setattr_device("core")
 
         self.fastinos = []
         for i in range(8):
-            self.fastinos.append(self.get_device(f'fastino{i}'))
+            self.fastinos.append(self.get_device(f"fastino{i}"))
 
         print(f"Found {len(self.fastinos)} Fastinos in `device_db.py`")
 
@@ -16,8 +17,7 @@ class FastinoLeds(EnvExperiment):
         self.core.break_realtime()
         for fastino in self.fastinos:
             fastino.init()
-            delay(200*us)
-
+            delay(200 * us)
 
     def run(self):
         self.core.reset()
@@ -32,7 +32,4 @@ class FastinoLeds(EnvExperiment):
                 led_marker = 1 << i
                 for fastino in self.fastinos:
                     fastino.set_leds(led_marker)
-                delay(200*ms)
-
-        
-
+                delay(200 * ms)
