@@ -7,6 +7,17 @@ test support via ARTIQ on Kasli-DIOT + Fastino hardware.
 
 - [Nix](https://nixos.org/download/) with flakes enabled
 
+## Important files and locations
+
+All of the built files are located in `build/diot-tester-fastino` directory. You can find there:
+  - `gateware` directory with compiled binary file
+  - `software` directory with compiled firmware and software files
+  - `device_db.py` - the one that is automatically generated from `desc/kasli_diot_fastino.json`; it's a file used by ARTIQ that contains system setup description (one can think of it as a sort of "device tree" - but it's an giant simplification)
+  - `idle.elf` - a compiled `experiments/fastino_square.py` experiment that is put into the onboard flash memory; it is launched on Kasli whenever there is nothing else for it to do (i.e. no other experiment is taking place or scheduled to run)
+  - `startup.elf` - it's similar to the `idle.elf`, but it's run only once and it's a hardware initialization procedure
+  - `storage.img` - file containing some configs, such as device's IP address, `idle kernel` or `startup kernel`.
+  - `experiments/fastino_square.py` - it's an ARTIQ experiment that can be launched on a KasliDIOT
+
 ## Environments
 
 ### Test / measurement environment (`nix develop`)
@@ -47,6 +58,30 @@ load(variant="my-custom-variant")   # override variant
 
 This is equivalent to running `make load` from the shell and raises
 `subprocess.CalledProcessError` on failure.
+
+## Changes to the experiment
+
+If one by any chance had to modify experiment (i.e. signal's amplitude or period), they can do that by modifying the `experiments/fastino_square.py` file. Important sections there are:
+ - `self.half_period` - if one shortens it too much, a `RTIOUnderflow` exceptions is to be expected
+ - `HIGH_VOLTAGE_VALUE` and `LOW_VOLTAGE_VALUE` variables
+
+### Running experiment
+
+Once you modify experiment, it's advised to test it before embedding it in the flash. To launch experiment, run:
+
+```bash
+artiq_run --device-db build/diot-tester-fastino/device_db.py experiments/fastino_square.py
+```
+
+Once you confirmed that it works and does what you expected of it, then you can embed it in the KasliDIOT's flash:
+
+```bash
+make build-storage
+make flash-storage
+```
+After that, KasliDIOT will take some time (around 10-15 s) to boot and start your experiment.
+
+> *It is advised to embed ARTIQ experiment in the device's flash, to avoid having to run it by hand every time*
 
 ## Hardware descriptor
 

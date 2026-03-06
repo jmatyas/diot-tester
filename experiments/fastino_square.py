@@ -1,6 +1,9 @@
 from artiq.experiment import *
 from numpy import int32
 
+HIGH_VOLTAGE_VALUE = 9.9
+LOW_VOLTAGE_VALUE = -9.9
+
 
 class FastinoSquare(EnvExperiment):
 
@@ -19,10 +22,10 @@ class FastinoSquare(EnvExperiment):
         self.high_voltages = [int32(0) for i in range(16)]
         self.low_voltages = [int32(0) for i in range(16)]
         self.fastinos[0].voltage_group_to_mu(
-            [9.9 for i in range(32)], self.high_voltages
+            [HIGH_VOLTAGE_VALUE for i in range(32)], self.high_voltages
         )
         self.fastinos[0].voltage_group_to_mu(
-            [-9.9 for i in range(32)], self.low_voltages
+            [LOW_VOLTAGE_VALUE for i in range(32)], self.low_voltages
         )
 
     @kernel
