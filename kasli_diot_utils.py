@@ -9,3 +9,7 @@ def load(variant: str = "diot-tester-fastino") -> None:
         ["artiq_flash", "-t", "kasli_diot", "--srcbuild", "-d", f"build/{variant}", "load"],
         check=True,
     )
+
+
+if __name__ == "__main__":
+    load()

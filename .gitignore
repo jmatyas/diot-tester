@@ -12,3 +12,27 @@ results/
 
 build/
 .direnv/
+
+260825/
+12_V_AC_NOISE PERFORMANCE/
+manual_dump/
+overlay_plots/
+plots/
+runs/
+scope_test_output/
+spectra/
+spectra_csv/
+test_results/
+
+fft_overlay_multi_120226.png
+fft_overlay_multi.png
+fft_overlay.png
+fft_ratio.png
+fft_ratio.csv
+
+overlay_plot.png
+psd_12V_PROBE.png
+psd_GND_PROBE.png
+
+spectrum_12V_PROBE.png
+spectrum_GND_PROBE.png
