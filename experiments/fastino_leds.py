@@ -7,9 +7,12 @@ class FastinoLeds(EnvExperiment):
         self.setattr_device("core")
 
         self.fastinos = []
-        for i in range(8):
-            self.fastinos.append(self.get_device(f"fastino{i}"))
 
+        device_db = self.get_device_db()
+        fastino_keys = sorted(key for key in device_db if key.startswith("fastino"))
+        for key in fastino_keys:
+            self.fastinos.append(self.get_device(key))
+        
         print(f"Found {len(self.fastinos)} Fastinos in `device_db.py`")
 
     @kernel

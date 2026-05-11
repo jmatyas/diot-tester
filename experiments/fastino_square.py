@@ -10,9 +10,12 @@ class FastinoSquare(EnvExperiment):
     def build(self):
         self.setattr_device("core")
         self.fastinos = []
-        for i in range(8):
-            self.fastinos.append(self.get_device(f"fastino{i}"))
-
+        
+        device_db = self.get_device_db()
+        fastino_keys = sorted(key for key in device_db if key.startswith("fastino"))
+        for key in fastino_keys:
+            self.fastinos.append(self.get_device(key))
+        
         # Fastino has frame duration of around 392 ns (refer to Fastino coredevice
         # and phy and gateware for details). So below is 15 us-ish - rounded to
         # a multiple of the frame duration - to get a clean square wave without

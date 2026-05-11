@@ -1,0 +1,30 @@
+{
+    "target": "kasli",
+    "variant": "sinara-tester-fastino-low",
+    "hw_rev": "v2.0",
+    "base": "standalone",
+    "core_addr": "192.168.95.70",
+    "peripherals": [
+        {
+            "type": "fastino",
+            "ports": [ 0 ],
+            "log2_width": 5
+        },
+        {
+            "type": "fastino",
+            "ports": [ 1 ],
+            "log2_width": 5
+        },
+        {
+            "type": "fastino",
+            "ports": [ 5 ],
+            "log2_width": 5            
+        },
+        {
+            "type": "fastino",
+            "ports": [ 6 ],
+            "log2_width": 5
+        }
+        
+    ]
+}

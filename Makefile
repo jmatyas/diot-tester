@@ -1,4 +1,14 @@
-VARIANT := diot-tester-fastino
+VARIANT ?= diot-tester-fastino
+
+ifeq ($(VARIANT),sinara-tester-fastino-high)
+  DESC := desc/kasli_fastino_high.json
+else ifeq ($(VARIANT),sinara-tester-fastino-low)
+  DESC := desc/kasli_fastino_low.json
+else ifeq ($(VARIANT),diot-tester-fastino)
+  DESC := desc/kasli_diot_fastino.json
+else
+  $(error Unknown VARIANT: "$(VARIANT)". Supported: sinara-tester-fastino-high, sinara-tester-fastino-low, diot-tester-fastino)
+endif
 
 .PHONY: help build build-storage flash flash-storage load
 
@@ -8,8 +18,8 @@ help:  ## Show available targets
 	    $(MAKEFILE_LIST)
 
 build:  ## Full build: gateware, kernels, storage image
-	python -m artiq.gateware.targets.kasli_diot --output-dir build desc/kasli_diot_fastino.json
-	artiq_ddb_template -o build/$(VARIANT)/device_db.py desc/kasli_diot_fastino.json
+	python -m artiq.gateware.targets.kasli --output-dir build $(DESC)
+	artiq_ddb_template -o build/$(VARIANT)/device_db.py $(DESC)
 	$(MAKE) build-storage
 
 build-storage:  ## Compile kernels + storage image (no gateware, needs existing device_db.py)
@@ -21,16 +31,16 @@ build-storage:  ## Compile kernels + storage image (no gateware, needs existing 
 	    build/$(VARIANT)/storage.img
 
 flash:  ## Erase and flash gateware + firmware + storage
-	artiq_flash -t kasli_diot --srcbuild -d build/$(VARIANT) \
+	artiq_flash -t kasli --srcbuild -d build/$(VARIANT) \
 	    -f build/$(VARIANT)/storage.img \
 	    erase=firmware,bootloader,gateware,storage \
-	    write=firmware,bootloader,storage load
+	    write=firmware,bootloader,gateware,storage load
 
 flash-storage:  ## Flash storage partition only
-	artiq_flash -t kasli_diot --srcbuild -d build/$(VARIANT) \
+	artiq_flash -t kasli --srcbuild -d build/$(VARIANT) \
 	    -f build/$(VARIANT)/storage.img \
 	    erase=storage \
 	    write=storage load
 
 load:  ## Load bitstream to FPGA over USB (no flash write)
-	artiq_flash -t kasli_diot --srcbuild -d build/$(VARIANT) load
+	artiq_flash -t kasli --srcbuild -d build/$(VARIANT) load
