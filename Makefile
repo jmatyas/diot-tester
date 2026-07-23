@@ -36,6 +36,12 @@ flash:  ## Erase and flash gateware + firmware + storage
 	    erase=firmware,bootloader,gateware,storage \
 	    write=firmware,bootloader,gateware,storage load
 
+flash-gatewareless: ## Erase all and flash everything EXCEPT FOR gateware (so firmware + bootloader + storage)
+	artiq_flash -t kasli --srcbuild -d build/$(VARIANT) \
+	    -f build/$(VARIANT)/storage.img \
+	    erase=firmware,gateware,bootloader,storage \
+	    write=firmware,storage,bootloader
+
 flash-storage:  ## Flash storage partition only
 	artiq_flash -t kasli --srcbuild -d build/$(VARIANT) \
 	    -f build/$(VARIANT)/storage.img \
